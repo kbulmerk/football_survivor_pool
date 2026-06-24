@@ -4,6 +4,7 @@ import { NextResponse } from 'next/server';
 const isPublicRoute = createRouteMatcher([
   '/login(.*)',
   '/api/cron(.*)',
+  '/api/health',
 ]);
 
 const isRootOrLogin = createRouteMatcher(['/', '/login(.*)']);
