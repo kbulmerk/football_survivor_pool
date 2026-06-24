@@ -17,11 +17,49 @@ Each week, players pick **one NFL team to lose**. If your team wins or ties, you
 
 ## Local setup
 
-1. Copy `.env.example` to `.env.local` and fill in your keys
-2. `npm install`
-3. `npm run db:generate` — generate migrations from schema
-4. `npm run db:migrate` — apply migrations to your database
-5. `npm run dev`
+### Prerequisites
+
+- Node.js 20.9+
+- A PostgreSQL database (local via `brew install postgresql` or a free Railway/Neon instance)
+- A [Clerk](https://dashboard.clerk.com) account with **phone number** auth enabled
+
+### Steps
+
+1. Install dependencies:
+   ```bash
+   npm install
+   ```
+
+2. Copy the example env file and fill in your keys:
+   ```bash
+   cp .env.example .env.local
+   ```
+
+   | Variable | Where to get it |
+   |---|---|
+   | `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` / `CLERK_SECRET_KEY` | Clerk dashboard → API Keys |
+   | `DATABASE_URL` | Your Postgres connection string |
+   | `TWILIO_*` | Twilio console — **optional for local dev**, SMS just won't send |
+   | `CRON_SECRET` | Any random string (e.g. `openssl rand -hex 32`) |
+   | `ADMIN_USER_ID` | Your Clerk user ID (found in Clerk dashboard → Users) |
+   | `VENMO_HANDLE` | Your Venmo username (shown on payment page) |
+
+3. Run database migrations:
+   ```bash
+   npm run db:generate   # generate migration files from schema
+   npm run db:migrate    # apply to your database
+   ```
+
+4. Start the dev server:
+   ```bash
+   npm run dev
+   ```
+
+   App runs at [http://localhost:3000](http://localhost:3000). You'll be redirected to `/login` until you sign in with a phone number via Clerk.
+
+### Clerk setup note
+
+In your Clerk dashboard, go to **User & Authentication → Email, Phone, Username** and enable **Phone number** as the only sign-in identifier. The app expects phone-number-based auth.
 
 ## Database
 

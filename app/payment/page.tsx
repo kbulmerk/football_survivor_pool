@@ -1,4 +1,5 @@
 import { and, eq } from 'drizzle-orm';
+import Link from 'next/link';
 import { db } from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
 import { getActiveLeague } from '@/app/actions/league';
@@ -24,7 +25,8 @@ export default async function PaymentPage() {
     );
 
   const buyIn = Number(league.buyIn);
-  const venmoUrl = `https://venmo.com/${league.venmoHandle}?txn=pay&amount=${buyIn}&note=Survivor%20Pool%20${league.season}`;
+  const handle = league.venmoHandle.replace(/^@/, '');
+  const venmoUrl = `https://venmo.com/${handle}?txn=pay&amount=${buyIn}&note=${encodeURIComponent(`Survivor Pool ${league.season}`)}`;
 
   return (
     <main className="p-8 max-w-xl mx-auto">
@@ -38,7 +40,7 @@ export default async function PaymentPage() {
         <div className="rounded-lg p-4 bg-yellow-50 border border-yellow-200 mb-6">
           <p className="text-gray-700 mb-4">
             Send <strong>${buyIn}</strong> to{' '}
-            <strong>@{league.venmoHandle}</strong> on Venmo with the note{' '}
+            <strong>{league.venmoHandle}</strong> on Venmo with the note{' '}
             <em>Survivor Pool {league.season}</em>.
           </p>
           <a
@@ -54,6 +56,12 @@ export default async function PaymentPage() {
           </p>
         </div>
       )}
+
+      <div className="mt-6 pt-6 border-t border-gray-200">
+        <Link href="/dashboard" className="text-sm text-blue-600 hover:underline">
+          ← Return to Dashboard
+        </Link>
+      </div>
     </main>
   );
 }

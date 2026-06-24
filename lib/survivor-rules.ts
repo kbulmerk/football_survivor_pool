@@ -2,6 +2,64 @@ import { and, eq, ne } from 'drizzle-orm';
 import { db } from './db';
 import { games, leagueMembers, picks, weekConfig } from './schema';
 
+export async function autoAssignMissingPicksForWeek(
+  leagueId: string,
+  week: number
+): Promise<void> {
+  const members = await db
+    .select({ userId: leagueMembers.userId })
+    .from(leagueMembers)
+    .where(and(eq(leagueMembers.leagueId, leagueId), eq(leagueMembers.isPaid, true)));
+
+  const weekGames = await db
+    .select()
+    .from(games)
+    .where(
+      and(eq(games.leagueId, leagueId), eq(games.week, week), eq(games.isExcluded, false))
+    );
+
+  const allTeams = weekGames.flatMap((g) => [g.homeTeam, g.awayTeam]);
+  if (allTeams.length === 0) return;
+
+  for (const { userId } of members) {
+    const [existing] = await db
+      .select()
+      .from(picks)
+      .where(and(eq(picks.leagueId, leagueId), eq(picks.userId, userId), eq(picks.week, week)));
+
+    if (existing) continue;
+
+    const usedPicks = await db
+      .select({ teamPicked: picks.teamPicked })
+      .from(picks)
+      .where(
+        and(eq(picks.leagueId, leagueId), eq(picks.userId, userId), ne(picks.week, week))
+      );
+
+    const usedTeams = new Set(usedPicks.map((p) => p.teamPicked));
+    const available = allTeams.filter((t) => !usedTeams.has(t));
+    if (available.length === 0) continue;
+
+    const randomTeam = available[Math.floor(Math.random() * available.length)];
+
+    await db
+      .insert(picks)
+      .values({ leagueId, userId, week, teamPicked: randomTeam })
+      .onConflictDoNothing();
+  }
+}
+
+export async function autoAssignOnDeadlinePass(
+  leagueId: string,
+  week: number
+): Promise<void> {
+  await autoAssignMissingPicksForWeek(leagueId, week);
+  await db
+    .update(weekConfig)
+    .set({ isLocked: true })
+    .where(and(eq(weekConfig.leagueId, leagueId), eq(weekConfig.week, week)));
+}
+
 export type PickValidationError =
   | 'NOT_IN_LEAGUE'
   | 'NOT_PAID'

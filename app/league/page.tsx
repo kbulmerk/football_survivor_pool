@@ -1,16 +1,23 @@
-import { eq } from 'drizzle-orm';
+import Link from 'next/link';
+import { and, eq } from 'drizzle-orm';
 import { redirect } from 'next/navigation';
 import { db } from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
 import { getActiveLeague } from '@/app/actions/league';
-import { leagueMembers, picks, users } from '@/lib/schema';
+import { leagueMembers, picks, users, weekConfig } from '@/lib/schema';
 import { StandingsTable } from '@/components/StandingsTable';
 import { PickHistory } from '@/components/PickHistory';
 
-export default async function LeaguePage() {
+export default async function LeaguePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ joined?: string }>;
+}) {
   await getCurrentUser();
   const league = await getActiveLeague();
   if (!league) redirect('/dashboard');
+
+  const { joined } = await searchParams;
 
   const members = await db
     .select({
@@ -32,13 +39,39 @@ export default async function LeaguePage() {
     .where(eq(picks.leagueId, league.id))
     .orderBy(picks.week, picks.userId);
 
+  const [openWeekConfig] = await db
+    .select()
+    .from(weekConfig)
+    .where(
+      and(
+        eq(weekConfig.leagueId, league.id),
+        eq(weekConfig.isOpen, true),
+        eq(weekConfig.isLocked, false)
+      )
+    )
+    .orderBy(weekConfig.week)
+    .limit(1);
+
+  const currentWeek = openWeekConfig?.week ?? null;
+
   return (
-    <main className="p-8 max-w-3xl mx-auto">
+    <main className="p-8 max-w-[60%] mx-auto">
+      {joined === '1' && (
+        <div className="rounded-lg p-4 mb-6 bg-green-100 text-green-800 font-semibold">
+          Successfully joined {league.name}!
+        </div>
+      )}
       <h1 className="text-2xl font-bold mb-6">{league.name} — Standings</h1>
-      <StandingsTable members={members} />
+      <StandingsTable members={members} allPicks={allPicks} currentWeek={currentWeek} />
 
       <h2 className="text-xl font-semibold mt-10 mb-4">Pick History</h2>
       <PickHistory picks={allPicks} members={members} />
+
+      <div className="mt-10 pt-6 border-t border-gray-200">
+        <Link href="/dashboard" className="text-sm text-blue-600 hover:underline">
+          ← Return to Dashboard
+        </Link>
+      </div>
     </main>
   );
 }

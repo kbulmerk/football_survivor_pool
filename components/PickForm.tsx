@@ -13,6 +13,7 @@ interface PickFormProps {
   usedTeams: string[];
   currentPick: string | null;
   deadline: string;
+  locked?: boolean;
 }
 
 export function PickForm({
@@ -22,8 +23,10 @@ export function PickForm({
   usedTeams,
   currentPick,
   deadline,
+  locked = false,
 }: PickFormProps) {
   const [selected, setSelected] = useState<string | null>(currentPick);
+  const [savedPick, setSavedPick] = useState<string | null>(currentPick);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -36,6 +39,7 @@ export function PickForm({
       if (result.error) {
         setMessage({ type: 'error', text: result.error });
       } else {
+        setSavedPick(selected);
         setMessage({ type: 'success', text: `Pick saved: ${selected} to lose.` });
       }
     });
@@ -56,6 +60,7 @@ export function PickForm({
             selected={selected}
             usedTeams={usedTeams}
             onSelect={setSelected}
+            locked={locked}
           />
         ))}
       </div>
@@ -72,13 +77,15 @@ export function PickForm({
         </div>
       )}
 
-      <button
-        onClick={handleSubmit}
-        disabled={!selected || isPending}
-        className="w-full rounded-full bg-blue-600 py-3 text-white font-semibold disabled:opacity-50 hover:bg-blue-700 transition-colors"
-      >
-        {isPending ? 'Saving…' : selected ? `Confirm: ${selected} to lose` : 'Select a team'}
-      </button>
+      {!locked && (
+        <button
+          onClick={handleSubmit}
+          disabled={!selected || isPending || selected === savedPick}
+          className="w-full rounded-full bg-blue-600 py-3 text-white font-semibold disabled:opacity-50 hover:bg-blue-700 transition-colors"
+        >
+          {isPending ? 'Saving…' : selected ? `Confirm: ${selected} to lose` : 'Select a team'}
+        </button>
+      )}
     </div>
   );
 }

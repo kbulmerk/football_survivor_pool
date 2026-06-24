@@ -21,7 +21,7 @@ export function PickHistory({ picks, members }: PickHistoryProps) {
 
   return (
     <div className="overflow-x-auto border rounded-lg">
-      <table className="w-full text-sm">
+      <table className="text-sm">
         <thead className="bg-gray-50 text-gray-500 uppercase text-xs">
           <tr>
             <th className="text-left px-4 py-2">Player</th>

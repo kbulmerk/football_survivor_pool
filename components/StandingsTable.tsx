@@ -1,3 +1,5 @@
+import type { Pick } from '@/lib/schema';
+
 interface Member {
   userId: string;
   name: string | null;
@@ -6,9 +8,19 @@ interface Member {
   eliminatedWeek: number | null;
 }
 
-export function StandingsTable({ members }: { members: Member[] }) {
+interface Props {
+  members: Member[];
+  allPicks: Pick[];
+  currentWeek: number | null;
+}
+
+export function StandingsTable({ members, allPicks, currentWeek }: Props) {
   const alive = members.filter((m) => m.isAlive);
   const eliminated = members.filter((m) => !m.isAlive);
+
+  const pickedThisWeek = currentWeek
+    ? new Set(allPicks.filter((p) => p.week === currentWeek).map((p) => p.userId))
+    : new Set<string>();
 
   return (
     <div className="border rounded-lg overflow-hidden">
@@ -18,6 +30,9 @@ export function StandingsTable({ members }: { members: Member[] }) {
             <th className="text-left px-4 py-2">Player</th>
             <th className="text-left px-4 py-2">Status</th>
             <th className="text-left px-4 py-2">Paid</th>
+            {currentWeek && (
+              <th className="text-left px-4 py-2">Team Picked</th>
+            )}
           </tr>
         </thead>
         <tbody className="divide-y">
@@ -36,6 +51,15 @@ export function StandingsTable({ members }: { members: Member[] }) {
                   <span className="text-orange-500">Pending</span>
                 )}
               </td>
+              {currentWeek && (
+                <td className="px-4 py-3">
+                  {pickedThisWeek.has(m.userId) ? (
+                    <span className="text-green-600">✓</span>
+                  ) : (
+                    <span className="text-gray-400">—</span>
+                  )}
+                </td>
+              )}
             </tr>
           ))}
           {eliminated.map((m) => (
@@ -47,6 +71,7 @@ export function StandingsTable({ members }: { members: Member[] }) {
                 ❌ Out{m.eliminatedWeek != null ? ` — Week ${m.eliminatedWeek}` : ''}
               </td>
               <td className="px-4 py-3 text-gray-400 text-xs">—</td>
+              {currentWeek && <td className="px-4 py-3 text-gray-400 text-xs">—</td>}
             </tr>
           ))}
         </tbody>

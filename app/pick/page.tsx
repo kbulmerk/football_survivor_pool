@@ -1,9 +1,11 @@
-import { and, eq } from 'drizzle-orm';
+import { and, desc, eq, ne } from 'drizzle-orm';
 import { redirect } from 'next/navigation';
+import Link from 'next/link';
 import { db } from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
 import { games, leagueMembers, picks, weekConfig } from '@/lib/schema';
 import { getActiveLeague } from '@/app/actions/league';
+import { autoAssignOnDeadlinePass } from '@/lib/survivor-rules';
 import { PickForm } from '@/components/PickForm';
 
 export default async function PickPage() {
@@ -29,12 +31,17 @@ export default async function PickPage() {
     .where(
       and(
         eq(weekConfig.leagueId, league.id),
-        eq(weekConfig.isOpen, true),
-        eq(weekConfig.isLocked, false)
+        eq(weekConfig.isOpen, true)
       )
     )
-    .orderBy(weekConfig.week)
+    .orderBy(desc(weekConfig.week))
     .limit(1);
+
+  if (config && !config.isLocked && new Date() > config.deadline) {
+    await autoAssignOnDeadlinePass(league.id, config.week);
+  }
+
+  const isLocked = config ? (config.isLocked || new Date() > config.deadline) : false;
 
   if (!config) {
     return (
@@ -64,7 +71,8 @@ export default async function PickPage() {
     .where(
       and(
         eq(picks.leagueId, league.id),
-        eq(picks.userId, user.id)
+        eq(picks.userId, user.id),
+        ne(picks.week, config.week)
       )
     );
 
@@ -86,7 +94,7 @@ export default async function PickPage() {
     <main className="p-8 max-w-2xl mx-auto">
       <h1 className="text-2xl font-bold mb-1">Week {config.week} Pick</h1>
       <p className="text-gray-500 mb-6">
-        Pick the team you think will <strong>lose</strong>. You cannot reuse a team.
+        Pick the team you think will <strong>lose</strong>. You cannot pick the same team twice.
       </p>
 
       <PickForm
@@ -96,7 +104,14 @@ export default async function PickPage() {
         usedTeams={[...usedTeams]}
         currentPick={currentPick?.teamPicked ?? null}
         deadline={config.deadline.toISOString()}
+        locked={isLocked}
       />
+
+      <div className="mt-10 pt-6 border-t border-gray-200">
+        <Link href="/dashboard" className="text-sm text-blue-600 hover:underline">
+          ← Return to Dashboard
+        </Link>
+      </div>
     </main>
   );
 }

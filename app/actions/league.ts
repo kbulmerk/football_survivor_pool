@@ -1,7 +1,7 @@
 'use server';
 
-import { revalidatePath } from 'next/cache';
 import { and, eq } from 'drizzle-orm';
+import { redirect } from 'next/navigation';
 import { db } from '@/lib/db';
 import { leagueMembers, leagues } from '@/lib/schema';
 import { getCurrentUser } from '@/lib/auth';
@@ -27,10 +27,7 @@ export async function joinLeague(leagueId: string) {
 
   await db.insert(leagueMembers).values({ leagueId, userId: user.id });
 
-  revalidatePath('/dashboard');
-  revalidatePath('/league');
-
-  return { success: true };
+  redirect('/league?joined=1');
 }
 
 export async function getActiveLeague() {

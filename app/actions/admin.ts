@@ -1,10 +1,12 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { and, eq } from 'drizzle-orm';
+import { redirect } from 'next/navigation';
+import { and, eq, ne } from 'drizzle-orm';
 import { db } from '@/lib/db';
-import { games, leagueMembers, paymentStatus, weekConfig } from '@/lib/schema';
+import { games, leagues, leagueMembers, paymentStatus, picks, weekConfig } from '@/lib/schema';
 import { requireAdmin } from '@/lib/auth';
+import { autoAssignMissingPicksForWeek } from '@/lib/survivor-rules';
 
 export async function markPaid(leagueId: string, userId: string, amount: number) {
   const admin = await requireAdmin();
@@ -32,10 +34,10 @@ export async function setDeadline(leagueId: string, week: number, deadline: Date
 
   await db
     .insert(weekConfig)
-    .values({ leagueId, week, deadline, isOpen: true })
+    .values({ leagueId, week, deadline })
     .onConflictDoUpdate({
       target: [weekConfig.leagueId, weekConfig.week],
-      set: { deadline, isOpen: true, isLocked: false },
+      set: { deadline },
     });
 
   revalidatePath('/admin');
@@ -68,6 +70,18 @@ export async function overrideElimination(leagueId: string, userId: string, isAl
 export async function openWeek(leagueId: string, week: number) {
   await requireAdmin();
 
+  // Close any other open weeks so only one is active at a time
+  await db
+    .update(weekConfig)
+    .set({ isOpen: false })
+    .where(
+      and(
+        eq(weekConfig.leagueId, leagueId),
+        eq(weekConfig.isOpen, true),
+        ne(weekConfig.week, week)
+      )
+    );
+
   await db
     .update(weekConfig)
     .set({ isOpen: true, isLocked: false })
@@ -85,7 +99,31 @@ export async function lockWeek(leagueId: string, week: number) {
     .set({ isLocked: true })
     .where(and(eq(weekConfig.leagueId, leagueId), eq(weekConfig.week, week)));
 
+  await autoAssignMissingPicksForWeek(leagueId, week);
+
   revalidatePath('/admin');
+  revalidatePath('/dashboard');
+  revalidatePath('/league');
+}
+
+export async function backfillMissingPicks(leagueId: string) {
+  await requireAdmin();
+
+  const now = new Date();
+  const configs = await db
+    .select()
+    .from(weekConfig)
+    .where(eq(weekConfig.leagueId, leagueId));
+
+  const pastWeeks = configs.filter((c) => c.isLocked || new Date(c.deadline) < now);
+
+  for (const config of pastWeeks) {
+    await autoAssignMissingPicksForWeek(leagueId, config.week);
+  }
+
+  revalidatePath('/admin');
+  revalidatePath('/dashboard');
+  revalidatePath('/league');
 }
 
 export async function upsertGame(
@@ -109,4 +147,62 @@ export async function upsertGame(
 
   revalidatePath('/admin');
   revalidatePath('/pick');
+}
+
+export async function seedTestGames(leagueId: string, week: number) {
+  await requireAdmin();
+
+  const testGames = [
+    { homeTeam: 'Kansas City Chiefs', awayTeam: 'Baltimore Ravens' },
+    { homeTeam: 'San Francisco 49ers', awayTeam: 'Dallas Cowboys' },
+    { homeTeam: 'Buffalo Bills', awayTeam: 'Miami Dolphins' },
+    { homeTeam: 'Philadelphia Eagles', awayTeam: 'New York Giants' },
+  ];
+
+  const sunday = new Date();
+  sunday.setDate(sunday.getDate() + ((7 - sunday.getDay()) % 7 || 7));
+  sunday.setHours(13, 0, 0, 0);
+
+  for (const g of testGames) {
+    await db.insert(games).values({
+      leagueId,
+      week,
+      homeTeam: g.homeTeam,
+      awayTeam: g.awayTeam,
+      startTime: new Date(sunday),
+    });
+    sunday.setHours(sunday.getHours() + 3);
+  }
+
+  revalidatePath('/admin');
+  revalidatePath('/pick');
+}
+
+export async function clearPicksForWeek(leagueId: string, week: number) {
+  await requireAdmin();
+
+  await db
+    .delete(picks)
+    .where(and(eq(picks.leagueId, leagueId), eq(picks.week, week)));
+
+  revalidatePath('/admin');
+  revalidatePath('/dashboard');
+  revalidatePath('/league');
+}
+
+export async function createLeague(formData: FormData) {
+  await requireAdmin();
+
+  const name = formData.get('name') as string;
+  const season = Number(formData.get('season'));
+  const buyIn = formData.get('buyIn') as string;
+  const venmoHandle = formData.get('venmoHandle') as string;
+
+  if (!name || !season || !buyIn || !venmoHandle) {
+    throw new Error('All fields are required.');
+  }
+
+  await db.insert(leagues).values({ name, season, buyIn, venmoHandle });
+
+  redirect('/admin');
 }

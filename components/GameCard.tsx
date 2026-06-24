@@ -7,9 +7,10 @@ interface GameCardProps {
   selected: string | null;
   usedTeams: string[];
   onSelect: (team: string) => void;
+  locked?: boolean;
 }
 
-export function GameCard({ game, selected, usedTeams, onSelect }: GameCardProps) {
+export function GameCard({ game, selected, usedTeams, onSelect, locked = false }: GameCardProps) {
   const teams = [game.awayTeam, game.homeTeam];
 
   const startLabel = new Date(game.startTime).toLocaleString('en-US', {
@@ -32,13 +33,17 @@ export function GameCard({ game, selected, usedTeams, onSelect }: GameCardProps)
           return (
             <button
               key={team}
-              onClick={() => !isUsed && onSelect(team)}
-              disabled={isUsed}
-              className={`flex-1 rounded-lg border-2 py-3 px-2 text-sm font-semibold transition-all
-                ${isSelected ? 'border-blue-600 bg-blue-50 text-blue-700' : ''}
-                ${isUsed ? 'border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed line-through' : ''}
-                ${!isSelected && !isUsed ? 'border-gray-200 hover:border-blue-400 hover:bg-blue-50 cursor-pointer' : ''}
-              `}
+              onClick={() => !isUsed && !locked && onSelect(team)}
+              disabled={isUsed || locked}
+              className={`flex-1 rounded-lg border-2 py-3 px-2 text-sm font-semibold transition-all ${
+                isSelected
+                  ? `border-blue-600 bg-blue-600 text-white ${locked ? 'cursor-default' : 'cursor-pointer'}`
+                  : isUsed
+                    ? 'border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed line-through'
+                    : locked
+                      ? 'border-gray-200 bg-gray-50 text-gray-400 cursor-default'
+                      : 'border-gray-200 hover:border-blue-400 hover:bg-blue-50 cursor-pointer'
+              }`}
             >
               {team}
               {isUsed && <span className="block text-xs font-normal">Used</span>}
