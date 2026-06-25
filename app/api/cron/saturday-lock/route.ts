@@ -12,7 +12,10 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
+  console.log('[saturday-lock] Starting cron job');
+
   const allLeagues = await db.select().from(leagues);
+  console.log(`[saturday-lock] Found ${allLeagues.length} league(s)`);
 
   for (const league of allLeagues) {
     const [config] = await db
@@ -28,22 +31,28 @@ export async function GET(req: NextRequest) {
       .orderBy(weekConfig.week)
       .limit(1);
 
-    if (!config) continue;
+    if (!config) {
+      console.log(`[saturday-lock] League "${league.name}" — no open/unlocked week, skipping`);
+      continue;
+    }
 
-    // Lock the week
+    console.log(`[saturday-lock] League "${league.name}" — locking Week ${config.week}`);
+
     await db
       .update(weekConfig)
       .set({ isLocked: true })
       .where(eq(weekConfig.id, config.id));
 
-    // Lock all existing picks for this week
-    await db
+    const lockedPicks = await db
       .update(picks)
       .set({ isLocked: true })
       .where(
         and(eq(picks.leagueId, league.id), eq(picks.week, config.week))
       );
+
+    console.log(`[saturday-lock] League "${league.name}" Week ${config.week} — locked successfully`);
   }
 
+  console.log('[saturday-lock] Cron job complete');
   return NextResponse.json({ ok: true });
 }

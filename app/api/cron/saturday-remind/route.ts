@@ -13,7 +13,10 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
+  console.log('[saturday-remind] Starting cron job');
+
   const allLeagues = await db.select().from(leagues);
+  console.log(`[saturday-remind] Found ${allLeagues.length} league(s)`);
 
   for (const league of allLeagues) {
     const [config] = await db
@@ -29,7 +32,12 @@ export async function GET(req: NextRequest) {
       .orderBy(weekConfig.week)
       .limit(1);
 
-    if (!config) continue;
+    if (!config) {
+      console.log(`[saturday-remind] League "${league.name}" — no open/unlocked week, skipping`);
+      continue;
+    }
+
+    console.log(`[saturday-remind] League "${league.name}" — processing Week ${config.week}`);
 
     // Find alive + paid members who have NOT picked this week
     const membersWithoutPicks = await db
@@ -56,14 +64,21 @@ export async function GET(req: NextRequest) {
         )
       );
 
+    console.log(`[saturday-remind] League "${league.name}" Week ${config.week} — ${membersWithoutPicks.length} member(s) missing picks`);
+
+    let sent = 0;
     for (const member of membersWithoutPicks) {
       if (!member.phone) continue;
       await sendSMS(
         member.phone,
         `⚠️ ${league.name} — You haven't made your Week ${config.week} pick yet! Deadline is tonight at midnight. Log in now!`
       );
+      sent++;
     }
+
+    console.log(`[saturday-remind] League "${league.name}" Week ${config.week} — sent ${sent} reminder(s)`);
   }
 
+  console.log('[saturday-remind] Cron job complete');
   return NextResponse.json({ ok: true });
 }
