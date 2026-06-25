@@ -8,6 +8,13 @@
       "when": 1782246062505,
       "tag": "0000_married_jocasta",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1782414398795,
+      "tag": "0001_clammy_maggott",
+      "breakpoints": true
     }
   ]
 }

@@ -1,6 +1,6 @@
 'use server';
 
-import { and, eq } from 'drizzle-orm';
+import { and, desc, eq } from 'drizzle-orm';
 import { redirect } from 'next/navigation';
 import { db } from '@/lib/db';
 import { leagueMembers, leagues } from '@/lib/schema';
@@ -27,15 +27,23 @@ export async function joinLeague(leagueId: string) {
 
   await db.insert(leagueMembers).values({ leagueId, userId: user.id });
 
-  redirect('/league?joined=1');
+  redirect(`/league?joined=1&leagueId=${leagueId}`);
 }
 
 export async function getActiveLeague() {
-  // For MVP there is one active league — return the most recently created one
   const [league] = await db
     .select()
     .from(leagues)
-    .orderBy(leagues.createdAt)
+    .orderBy(desc(leagues.createdAt))
     .limit(1);
   return league ?? null;
+}
+
+export async function getLeagueById(id: string) {
+  const [league] = await db.select().from(leagues).where(eq(leagues.id, id));
+  return league ?? null;
+}
+
+export async function getAllLeagues() {
+  return db.select().from(leagues).orderBy(desc(leagues.createdAt));
 }

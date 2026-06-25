@@ -4,14 +4,32 @@ import Link from 'next/link';
 import { db } from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
 import { games, leagueMembers, picks, weekConfig } from '@/lib/schema';
-import { getActiveLeague } from '@/app/actions/league';
+import { getAllLeagues, getLeagueById } from '@/app/actions/league';
 import { autoAssignOnDeadlinePass } from '@/lib/survivor-rules';
 import { PickForm } from '@/components/PickForm';
+import { LeaguePicker } from '@/components/LeaguePicker';
 
-export default async function PickPage() {
+export default async function PickPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ leagueId?: string }>;
+}) {
   const user = await getCurrentUser();
-  const league = await getActiveLeague();
-  if (!league) redirect('/dashboard');
+  const { leagueId } = await searchParams;
+
+  let league;
+  if (leagueId) {
+    league = await getLeagueById(leagueId);
+    if (!league) redirect('/dashboard');
+  } else {
+    const allLeagues = await getAllLeagues();
+    if (allLeagues.length === 0) redirect('/dashboard');
+    if (allLeagues.length === 1) {
+      league = allLeagues[0];
+    } else {
+      return <LeaguePicker leagues={allLeagues} targetPath="/pick" title="Make Your Pick" />;
+    }
+  }
 
   const [member] = await db
     .select()
@@ -64,7 +82,6 @@ export default async function PickPage() {
     )
     .orderBy(games.startTime);
 
-  // Teams this user has already picked in previous weeks
   const priorPicks = await db
     .select({ team: picks.teamPicked })
     .from(picks)
@@ -78,7 +95,6 @@ export default async function PickPage() {
 
   const usedTeams = new Set(priorPicks.map((p) => p.team));
 
-  // Current week's pick (if any)
   const [currentPick] = await db
     .select()
     .from(picks)

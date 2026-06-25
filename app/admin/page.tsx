@@ -3,21 +3,23 @@ import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { db } from '@/lib/db';
 import { requireAdmin } from '@/lib/auth';
-import { getActiveLeague } from '@/app/actions/league';
+import { getAllLeagues } from '@/app/actions/league';
 import { games, leagueMembers, users, weekConfig } from '@/lib/schema';
 import { AdminUserRow } from '@/components/AdminUserRow';
 import { AdminGameRow } from '@/components/AdminGameRow';
 import { AdminWeekControls } from '@/components/AdminWeekControls';
+import { AdminLeagueSelector } from '@/components/AdminLeagueSelector';
+import { AdminDeleteLeague } from '@/components/AdminDeleteLeague';
 
 export default async function AdminPage({
   searchParams,
 }: {
-  searchParams: Promise<{ week?: string }>;
+  searchParams: Promise<{ week?: string; league?: string }>;
 }) {
   await requireAdmin().catch(() => redirect('/dashboard'));
 
-  const league = await getActiveLeague();
-  if (!league) {
+  const allLeagues = await getAllLeagues();
+  if (allLeagues.length === 0) {
     return (
       <main className="p-8">
         <h1 className="text-2xl font-bold mb-4">Admin</h1>
@@ -31,6 +33,11 @@ export default async function AdminPage({
       </main>
     );
   }
+
+  const { week: weekParam, league: leagueParam } = await searchParams;
+  const league =
+    (leagueParam ? allLeagues.find((l) => l.id === leagueParam) : null) ??
+    allLeagues[0];
 
   const members = await db
     .select({
@@ -52,9 +59,10 @@ export default async function AdminPage({
     .where(eq(weekConfig.leagueId, league.id))
     .orderBy(weekConfig.week);
 
-  const { week: weekParam } = await searchParams;
+  const openConfig = allConfigs.find((c) => c.isOpen && !c.isLocked);
   const defaultWeek =
-    allConfigs.length > 0 ? Math.max(...allConfigs.map((c) => c.week)) : 1;
+    openConfig?.week ??
+    (allConfigs.length > 0 ? Math.max(...allConfigs.map((c) => c.week)) : 1);
   const selectedWeek = weekParam ? Number(weekParam) : defaultWeek;
 
   const currentConfig = allConfigs.find((c) => c.week === selectedWeek) ?? null;
@@ -67,7 +75,29 @@ export default async function AdminPage({
 
   return (
     <main className="p-8 max-w-4xl mx-auto">
-      <h1 className="text-2xl font-bold mb-6">Admin — {league.name}</h1>
+      <div className="flex items-start justify-between mb-6 gap-4">
+        <div className="flex items-end gap-4">
+          <h1 className="text-2xl font-bold">Admin</h1>
+          {allLeagues.length > 1 && (
+            <AdminLeagueSelector
+              leagues={allLeagues}
+              selectedLeagueId={league.id}
+            />
+          )}
+          {allLeagues.length === 1 && (
+            <span className="text-lg text-gray-600">{league.name}</span>
+          )}
+        </div>
+        <div className="flex items-center gap-3">
+          <Link
+            href="/admin/create-league"
+            className="text-sm bg-blue-600 text-white rounded px-3 py-1.5 hover:bg-blue-700"
+          >
+            New League
+          </Link>
+          <AdminDeleteLeague leagueId={league.id} leagueName={league.name} />
+        </div>
+      </div>
 
       <section className="mb-10">
         <h2 className="text-xl font-semibold mb-3">Week Controls</h2>
@@ -88,7 +118,7 @@ export default async function AdminPage({
         ) : (
           <div className="divide-y border rounded-lg overflow-hidden">
             {weekGames.map((game) => (
-              <AdminGameRow key={game.id} game={game} leagueId={league.id} />
+              <AdminGameRow key={game.id} game={game} />
             ))}
           </div>
         )}
@@ -102,6 +132,7 @@ export default async function AdminPage({
               key={member.userId}
               member={member}
               leagueId={league.id}
+              currentWeek={selectedWeek}
             />
           ))}
         </div>

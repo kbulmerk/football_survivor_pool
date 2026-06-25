@@ -18,14 +18,14 @@ export async function GET(req: NextRequest) {
   const allLeagues = await db.select().from(leagues);
 
   for (const league of allLeagues) {
-    // Process the most recently locked week
     const [config] = await db
       .select()
       .from(weekConfig)
       .where(
         and(
           eq(weekConfig.leagueId, league.id),
-          eq(weekConfig.isLocked, true)
+          eq(weekConfig.isLocked, true),
+          eq(weekConfig.isEvaluated, false)
         )
       )
       .orderBy(weekConfig.week)
@@ -34,6 +34,11 @@ export async function GET(req: NextRequest) {
     if (!config) continue;
 
     await evaluateResults(league.id, config.week);
+
+    await db
+      .update(weekConfig)
+      .set({ isEvaluated: true })
+      .where(eq(weekConfig.id, config.id));
 
     // Notify surviving members
     const alive = await db

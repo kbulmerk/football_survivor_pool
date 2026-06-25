@@ -3,6 +3,8 @@ import type { Pick } from '@/lib/schema';
 interface Member {
   userId: string;
   name: string | null;
+  isAlive: boolean;
+  eliminatedWeek: number | null;
 }
 
 interface PickHistoryProps {
@@ -42,20 +44,24 @@ export function PickHistory({ picks, members }: PickHistoryProps) {
                 const pick = picks.find(
                   (p) => p.userId === member.userId && p.week === w
                 );
+                const isEliminatingPick = !member.isAlive && member.eliminatedWeek === w;
                 return (
-                  <td key={w} className="px-4 py-3 whitespace-nowrap">
+                  <td
+                    key={w}
+                    className={`px-4 py-3 whitespace-nowrap${isEliminatingPick ? ' bg-red-100' : ''}`}
+                  >
                     {pick ? (
                       <span
                         className={
-                          pick.result === 'eliminated'
-                            ? 'text-red-500'
+                          isEliminatingPick
+                            ? 'text-red-700 font-semibold'
                             : pick.result === 'correct'
                             ? 'text-green-600'
                             : 'text-gray-700'
                         }
                       >
                         {pick.teamPicked}
-                        {pick.result === 'eliminated' && ' ❌'}
+                        {isEliminatingPick && ' ❌'}
                         {pick.result === 'correct' && ' ✓'}
                       </span>
                     ) : (

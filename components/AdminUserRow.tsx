@@ -12,7 +12,7 @@ interface Member {
   eliminatedWeek: number | null;
 }
 
-export function AdminUserRow({ member, leagueId }: { member: Member; leagueId: string }) {
+export function AdminUserRow({ member, leagueId, currentWeek }: { member: Member; leagueId: string; currentWeek: number }) {
   const [isPending, startTransition] = useTransition();
 
   function handleMarkPaid() {
@@ -23,7 +23,7 @@ export function AdminUserRow({ member, leagueId }: { member: Member; leagueId: s
 
   function handleToggleAlive() {
     startTransition(async () => {
-      await overrideElimination(leagueId, member.userId, !member.isAlive);
+      await overrideElimination(leagueId, member.userId, !member.isAlive, currentWeek);
     });
   }
 

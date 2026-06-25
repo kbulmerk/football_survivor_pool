@@ -9,7 +9,13 @@ export async function autoAssignMissingPicksForWeek(
   const members = await db
     .select({ userId: leagueMembers.userId })
     .from(leagueMembers)
-    .where(and(eq(leagueMembers.leagueId, leagueId), eq(leagueMembers.isPaid, true)));
+    .where(
+      and(
+        eq(leagueMembers.leagueId, leagueId),
+        eq(leagueMembers.isPaid, true),
+        eq(leagueMembers.isAlive, true)
+      )
+    );
 
   const weekGames = await db
     .select()

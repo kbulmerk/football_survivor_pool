@@ -82,3 +82,17 @@ Configured as Railway Cron services that hit protected API routes:
 | Mon 1am | `/api/cron/monday-results` | Evaluate results, update standings |
 
 Each route requires `Authorization: Bearer $CRON_SECRET` header.
+
+### Testing cron jobs locally
+
+1. Start the dev server:
+   ```bash
+   npm run dev
+   ```
+
+2. Run a script with your env vars inline:
+   ```bash
+   APP_URL=http://localhost:3000 CRON_SECRET=<your-cron-secret> sh scripts/cron/saturday-lock.sh
+   ```
+
+   Replace `saturday-lock.sh` with whichever script you want to test.

@@ -85,6 +85,7 @@ export const weekConfig = pgTable(
     deadline: timestamp('deadline').notNull(),
     isOpen: boolean('is_open').notNull().default(false),
     isLocked: boolean('is_locked').notNull().default(false),
+    isEvaluated: boolean('is_evaluated').notNull().default(false),
   },
   (t) => [unique().on(t.leagueId, t.week)]
 );

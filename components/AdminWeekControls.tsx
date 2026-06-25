@@ -3,7 +3,7 @@
 import { useTransition, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import type { WeekConfig } from '@/lib/schema';
-import { setDeadline, openWeek, lockWeek, seedTestGames, backfillMissingPicks, clearPicksForWeek } from '@/app/actions/admin';
+import { setDeadline, openWeek, lockWeek, seedTestGames, backfillMissingPicks, clearPicksForWeek, resetWeek } from '@/app/actions/admin';
 
 interface Props {
   leagueId: string;
@@ -27,6 +27,7 @@ export function AdminWeekControls({ leagueId, currentConfig, allConfigs, selecte
   );
 
   useEffect(() => {
+    setWeek(selectedWeek);
     setDeadlineInput(
       currentConfig?.deadline ? toLocalDatetime(new Date(currentConfig.deadline)) : ''
     );
@@ -36,7 +37,7 @@ export function AdminWeekControls({ leagueId, currentConfig, allConfigs, selecte
 
   function handleWeekChange(newWeek: number) {
     setWeek(newWeek);
-    router.replace(`/admin?week=${newWeek}`);
+    router.replace(`/admin?league=${leagueId}&week=${newWeek}`);
   }
 
   function handleSeedTestGames() {
@@ -74,6 +75,13 @@ export function AdminWeekControls({ leagueId, currentConfig, allConfigs, selecte
     if (!confirm(`Clear all picks for Week ${week}? This cannot be undone.`)) return;
     startTransition(async () => {
       await clearPicksForWeek(leagueId, week);
+    });
+  }
+
+  function handleResetWeek() {
+    if (!confirm(`Reset Week ${week}? This will delete all picks, games, and the week configuration. This cannot be undone.`)) return;
+    startTransition(async () => {
+      await resetWeek(leagueId, week);
     });
   }
 
@@ -142,7 +150,7 @@ export function AdminWeekControls({ leagueId, currentConfig, allConfigs, selecte
           </span>
           <button
             onClick={handleOpenWeek}
-            disabled={isPending || currentConfig.isOpen}
+            disabled={isPending || (currentConfig.isOpen && !currentConfig.isLocked)}
             className="bg-green-100 text-green-700 rounded px-2 py-1 hover:bg-green-200 disabled:opacity-40"
           >
             Open Picks
@@ -160,6 +168,13 @@ export function AdminWeekControls({ leagueId, currentConfig, allConfigs, selecte
             className="bg-red-100 text-red-700 rounded px-2 py-1 hover:bg-red-200 disabled:opacity-40"
           >
             Clear Picks
+          </button>
+          <button
+            onClick={handleResetWeek}
+            disabled={isPending}
+            className="bg-red-700 text-white rounded px-2 py-1 hover:bg-red-800 disabled:opacity-40"
+          >
+            Reset Week
           </button>
         </div>
       )}

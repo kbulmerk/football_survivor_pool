@@ -3,21 +3,33 @@ import { and, eq } from 'drizzle-orm';
 import { redirect } from 'next/navigation';
 import { db } from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
-import { getActiveLeague } from '@/app/actions/league';
+import { getAllLeagues, getLeagueById } from '@/app/actions/league';
 import { leagueMembers, picks, users, weekConfig } from '@/lib/schema';
 import { StandingsTable } from '@/components/StandingsTable';
 import { PickHistory } from '@/components/PickHistory';
+import { LeaguePicker } from '@/components/LeaguePicker';
 
 export default async function LeaguePage({
   searchParams,
 }: {
-  searchParams: Promise<{ joined?: string }>;
+  searchParams: Promise<{ joined?: string; leagueId?: string }>;
 }) {
   await getCurrentUser();
-  const league = await getActiveLeague();
-  if (!league) redirect('/dashboard');
+  const { joined, leagueId } = await searchParams;
 
-  const { joined } = await searchParams;
+  let league;
+  if (leagueId) {
+    league = await getLeagueById(leagueId);
+    if (!league) redirect('/dashboard');
+  } else {
+    const allLeagues = await getAllLeagues();
+    if (allLeagues.length === 0) redirect('/dashboard');
+    if (allLeagues.length === 1) {
+      league = allLeagues[0];
+    } else {
+      return <LeaguePicker leagues={allLeagues} targetPath="/league" title="View Standings" />;
+    }
+  }
 
   const members = await db
     .select({

@@ -1,0 +1,1 @@
+ALTER TABLE "week_config" ADD COLUMN "is_evaluated" boolean DEFAULT false NOT NULL;

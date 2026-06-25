@@ -53,12 +53,12 @@ export async function excludeGame(gameId: string, excluded: boolean) {
   revalidatePath('/pick');
 }
 
-export async function overrideElimination(leagueId: string, userId: string, isAlive: boolean) {
+export async function overrideElimination(leagueId: string, userId: string, isAlive: boolean, week?: number) {
   await requireAdmin();
 
   await db
     .update(leagueMembers)
-    .set({ isAlive, eliminatedWeek: isAlive ? null : undefined })
+    .set({ isAlive, eliminatedWeek: isAlive ? null : (week ?? null) })
     .where(
       and(eq(leagueMembers.leagueId, leagueId), eq(leagueMembers.userId, userId))
     );
@@ -190,6 +190,19 @@ export async function clearPicksForWeek(leagueId: string, week: number) {
   revalidatePath('/league');
 }
 
+export async function resetWeek(leagueId: string, week: number) {
+  await requireAdmin();
+
+  await db.delete(picks).where(and(eq(picks.leagueId, leagueId), eq(picks.week, week)));
+  await db.delete(games).where(and(eq(games.leagueId, leagueId), eq(games.week, week)));
+  await db.delete(weekConfig).where(and(eq(weekConfig.leagueId, leagueId), eq(weekConfig.week, week)));
+
+  revalidatePath('/admin');
+  revalidatePath('/dashboard');
+  revalidatePath('/league');
+  revalidatePath('/pick');
+}
+
 export async function createLeague(formData: FormData) {
   await requireAdmin();
 
@@ -203,6 +216,14 @@ export async function createLeague(formData: FormData) {
   }
 
   await db.insert(leagues).values({ name, season, buyIn, venmoHandle });
+
+  redirect('/admin');
+}
+
+export async function deleteLeague(leagueId: string) {
+  await requireAdmin();
+
+  await db.delete(leagues).where(eq(leagues.id, leagueId));
 
   redirect('/admin');
 }

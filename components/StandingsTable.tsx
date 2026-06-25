@@ -70,7 +70,13 @@ export function StandingsTable({ members, allPicks, currentWeek }: Props) {
               <td className="px-4 py-3 text-red-500 text-xs">
                 ❌ Out{m.eliminatedWeek != null ? ` — Week ${m.eliminatedWeek}` : ''}
               </td>
-              <td className="px-4 py-3 text-gray-400 text-xs">—</td>
+              <td className="px-4 py-3 text-xs">
+                {m.isPaid ? (
+                  <span className="text-green-600">✓</span>
+                ) : (
+                  <span className="text-orange-500">Pending</span>
+                )}
+              </td>
               {currentWeek && <td className="px-4 py-3 text-gray-400 text-xs">—</td>}
             </tr>
           ))}

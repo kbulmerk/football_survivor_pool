@@ -4,7 +4,7 @@ import { useTransition } from 'react';
 import type { Game } from '@/lib/schema';
 import { excludeGame } from '@/app/actions/admin';
 
-export function AdminGameRow({ game, leagueId }: { game: Game; leagueId: string }) {
+export function AdminGameRow({ game }: { game: Game }) {
   const [isPending, startTransition] = useTransition();
 
   function handleToggleExclude() {
@@ -19,7 +19,7 @@ export function AdminGameRow({ game, leagueId }: { game: Game; leagueId: string 
         <p className="font-medium text-sm">
           {game.awayTeam} @ {game.homeTeam}
         </p>
-        <p className="text-xs text-gray-400">
+        <p className="text-xs text-gray-400" suppressHydrationWarning>
           {new Date(game.startTime).toLocaleString('en-US', {
             weekday: 'short',
             month: 'short',

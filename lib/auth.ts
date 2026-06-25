@@ -20,7 +20,11 @@ export async function getCurrentUser() {
     .values({ id: userId, phone, name })
     .onConflictDoUpdate({
       target: users.id,
-      set: { phone, name },
+      set: {
+        name,
+        // Don't overwrite a manually-saved phone with null from Clerk free tier
+        ...(phone !== null ? { phone } : {}),
+      },
     });
 
   const [user] = await db.select().from(users).where(eq(users.id, userId));
