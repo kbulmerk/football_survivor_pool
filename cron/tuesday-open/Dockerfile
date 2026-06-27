@@ -1,4 +1,5 @@
 FROM alpine:latest
 RUN apk add --no-cache curl
 WORKDIR /app
-COPY scripts/cron/ scripts/cron/
+COPY tuesday-open.sh .
+CMD ["sh", "tuesday-open.sh"]
