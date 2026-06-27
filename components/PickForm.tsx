@@ -46,13 +46,22 @@ export function PickForm({
   }
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-4">
-        <p className="text-sm text-gray-500">Deadline:</p>
-        <Countdown deadline={deadline} />
+    <div style={{ marginTop: '13px' }}>
+      {/* Dark deadline bar */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 13px', background: 'var(--ink)', borderRadius: '6px', marginBottom: '14px' }}>
+        <span className="f-oswald" style={{ fontWeight: 600, fontSize: '11px', letterSpacing: '1.5px', textTransform: 'uppercase', color: 'var(--gold)' }}>
+          Deadline
+        </span>
+        <Countdown
+          deadline={deadline}
+          variant="inline"
+          className="f-mono"
+          style={{ fontWeight: 700, fontSize: '15px', color: '#ECE0C4' }}
+        />
       </div>
 
-      <div className="space-y-4 mb-6">
+      {/* Game cards */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '16px' }}>
         {games.map((game) => (
           <GameCard
             key={game.id}
@@ -65,26 +74,76 @@ export function PickForm({
         ))}
       </div>
 
+      {/* Feedback message */}
       {message && (
         <div
-          className={`rounded-lg p-3 mb-4 text-sm font-medium ${
-            message.type === 'success'
-              ? 'bg-green-100 text-green-800'
-              : 'bg-red-100 text-red-800'
-          }`}
+          style={{
+            padding: '11px 14px',
+            marginBottom: '12px',
+            borderRadius: '4px',
+            background: message.type === 'success' ? '#E0E8D6' : '#F4DADA',
+            color: message.type === 'success' ? 'var(--field-green)' : 'var(--varsity-red)',
+            fontSize: '13px',
+            fontFamily: 'var(--font-spectral-var), serif',
+          }}
         >
           {message.text}
         </div>
       )}
 
+      {/* Submit button */}
       {!locked && (
         <button
           onClick={handleSubmit}
           disabled={!selected || isPending || selected === savedPick}
-          className="w-full rounded-full bg-blue-600 py-3 text-white font-semibold disabled:opacity-50 hover:bg-blue-700 transition-colors"
+          className="f-oswald"
+          style={{
+            display: 'block',
+            width: '100%',
+            textAlign: 'center',
+            fontWeight: 700,
+            fontSize: '14px',
+            letterSpacing: '1px',
+            textTransform: 'uppercase',
+            color: '#FBF5E6',
+            background: !selected || selected === savedPick ? 'var(--disabled-border)' : 'var(--varsity-red)',
+            borderRadius: '5px',
+            padding: '14px',
+            border: 'none',
+            boxShadow: !selected || selected === savedPick ? 'none' : '4px 4px 0 rgba(34,26,16,0.18)',
+            cursor: !selected || isPending || selected === savedPick ? 'not-allowed' : 'pointer',
+            transition: 'filter 0.1s',
+          }}
         >
-          {isPending ? 'Saving…' : selected ? `Confirm: ${selected} to lose` : 'Select a team'}
+          {isPending
+            ? 'Saving…'
+            : selected && selected !== savedPick
+            ? `Lock In: ${selected} to Lose →`
+            : savedPick
+            ? `Locked: ${savedPick} to Lose`
+            : 'Select a team'}
         </button>
+      )}
+
+      {locked && (
+        <div
+          className="f-oswald"
+          style={{
+            display: 'block',
+            width: '100%',
+            textAlign: 'center',
+            fontWeight: 600,
+            fontSize: '13px',
+            letterSpacing: '0.8px',
+            textTransform: 'uppercase',
+            color: 'var(--disabled-text)',
+            border: '1.5px dashed var(--disabled-border)',
+            borderRadius: '5px',
+            padding: '14px',
+          }}
+        >
+          {currentPick ? `Pick locked: ${currentPick} to lose` : 'Picks are locked'}
+        </div>
       )}
     </div>
   );

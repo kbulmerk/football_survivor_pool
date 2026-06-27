@@ -1,4 +1,5 @@
 import type { Pick } from '@/lib/schema';
+import { getTeamColor, getTeamAbbr } from '@/lib/team-colors';
 
 interface Member {
   userId: string;
@@ -14,66 +15,132 @@ interface PickHistoryProps {
 
 export function PickHistory({ picks, members }: PickHistoryProps) {
   const nameMap = Object.fromEntries(members.map((m) => [m.userId, m.name ?? 'Unknown']));
-
   const weeks = [...new Set(picks.map((p) => p.week))].sort((a, b) => a - b);
 
   if (picks.length === 0) {
-    return <p className="text-gray-500 text-sm">No picks submitted yet.</p>;
+    return (
+      <p className="f-spectral" style={{ color: 'var(--text-muted)', fontSize: '13.5px' }}>
+        No picks submitted yet.
+      </p>
+    );
   }
 
   return (
-    <div className="overflow-x-auto border rounded-lg">
-      <table className="text-sm">
-        <thead className="bg-gray-50 text-gray-500 uppercase text-xs">
-          <tr>
-            <th className="text-left px-4 py-2">Player</th>
-            {weeks.map((w) => (
-              <th key={w} className="text-left px-4 py-2">
-                Wk {w}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody className="divide-y">
-          {members.map((member) => (
-            <tr key={member.userId} className="bg-white">
-              <td className="px-4 py-3 font-medium whitespace-nowrap">
-                {nameMap[member.userId]}
-              </td>
-              {weeks.map((w) => {
-                const pick = picks.find(
-                  (p) => p.userId === member.userId && p.week === w
-                );
-                const isEliminatingPick = !member.isAlive && member.eliminatedWeek === w;
-                return (
-                  <td
-                    key={w}
-                    className={`px-4 py-3 whitespace-nowrap${isEliminatingPick ? ' bg-red-100' : ''}`}
+    <>
+      <div style={{ border: '1.5px solid var(--ink)', borderRadius: '7px', overflow: 'hidden', boxShadow: '6px 6px 0 rgba(34,26,16,0.13)' }}>
+        <div style={{ overflowX: 'auto' }}>
+          <div style={{ minWidth: '520px' }}>
+            {/* Header */}
+            <div style={{ display: 'flex', background: 'var(--ink)' }}>
+              <span
+                className="f-oswald"
+                style={{ width: '118px', flexShrink: 0, padding: '9px 14px', fontSize: '10px', letterSpacing: '1px', textTransform: 'uppercase', color: 'var(--gold)' }}
+              >
+                Player
+              </span>
+              {weeks.map((w) => (
+                <span
+                  key={w}
+                  className="f-oswald"
+                  style={{ flex: 1, textAlign: 'center', padding: '9px 4px', fontSize: '10px', letterSpacing: '1px', textTransform: 'uppercase', color: 'var(--gold)' }}
+                >
+                  W{w}
+                </span>
+              ))}
+            </div>
+
+            {/* Member rows */}
+            {members.map((member, rowIdx) => {
+              const isEliminated = !member.isAlive;
+              const rowBg = isEliminated ? 'var(--paper-row-dead)' : 'var(--paper-card)';
+              const isLast = rowIdx === members.length - 1;
+
+              return (
+                <div
+                  key={member.userId}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'stretch',
+                    background: rowBg,
+                    borderBottom: !isLast ? '1px solid var(--hairline)' : undefined,
+                  }}
+                >
+                  {/* Player name */}
+                  <span
+                    className="f-spectral"
+                    style={{
+                      width: '118px',
+                      flexShrink: 0,
+                      padding: '11px 14px',
+                      fontWeight: 600,
+                      fontSize: '13px',
+                      color: isEliminated ? '#9a8a6c' : 'var(--ink)',
+                      textDecoration: isEliminated ? 'line-through' : 'none',
+                      display: 'flex',
+                      alignItems: 'center',
+                    }}
                   >
-                    {pick ? (
+                    {nameMap[member.userId]}
+                  </span>
+
+                  {/* Week cells */}
+                  {weeks.map((w) => {
+                    const pick = picks.find((p) => p.userId === member.userId && p.week === w);
+                    const isEliminatingPick = !member.isAlive && member.eliminatedWeek === w;
+                    const isAfterElim = !member.isAlive && member.eliminatedWeek != null && w > member.eliminatedWeek;
+
+                    if (!pick || isAfterElim) {
+                      return (
+                        <span
+                          key={w}
+                          className="f-mono"
+                          style={{ flex: 1, textAlign: 'center', padding: '9px 4px', fontSize: '13px', color: '#cbbd9a', alignSelf: 'center' }}
+                        >
+                          —
+                        </span>
+                      );
+                    }
+
+                    return (
                       <span
-                        className={
-                          isEliminatingPick
-                            ? 'text-red-700 font-semibold'
-                            : pick.result === 'correct'
-                            ? 'text-green-600'
-                            : 'text-gray-700'
-                        }
+                        key={w}
+                        style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px', padding: '9px 4px' }}
                       >
-                        {pick.teamPicked}
-                        {isEliminatingPick && ' ❌'}
-                        {pick.result === 'correct' && ' ✓'}
+                        <span
+                          style={{
+                            width: '13px',
+                            height: '13px',
+                            borderRadius: '3px',
+                            background: getTeamColor(pick.teamPicked),
+                            boxShadow: isEliminatingPick ? '0 0 0 2px #A12821' : undefined,
+                            flexShrink: 0,
+                          }}
+                        />
+                        <span
+                          className="f-mono"
+                          style={{
+                            fontSize: '9px',
+                            color: isEliminatingPick ? 'var(--varsity-red)' : isEliminated ? '#9a8a6c' : 'var(--ink)',
+                            textDecoration: isEliminatingPick ? 'line-through' : 'none',
+                          }}
+                        >
+                          {getTeamAbbr(pick.teamPicked)}{isEliminatingPick ? ' ✗' : ''}
+                        </span>
                       </span>
-                    ) : (
-                      <span className="text-gray-300">—</span>
-                    )}
-                  </td>
-                );
-              })}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+                    );
+                  })}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+      <div
+        className="f-mono"
+        style={{ textAlign: 'center', fontSize: '9px', letterSpacing: '1.5px', color: 'var(--disabled-text)', padding: '8px 0 4px', textTransform: 'uppercase' }}
+      >
+        ← swipe table to see all weeks →
+      </div>
+    </>
   );
 }

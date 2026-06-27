@@ -12,19 +12,24 @@ export function AdminLeagueSelector({ leagues, selectedLeagueId }: Props) {
   const router = useRouter();
 
   return (
-    <div>
-      <label className="block text-xs text-gray-500 mb-1">League</label>
-      <select
-        value={selectedLeagueId}
-        onChange={(e) => router.replace(`/admin?league=${e.target.value}`)}
-        className="border rounded px-2 py-1.5 text-sm bg-white"
-      >
-        {leagues.map((l) => (
-          <option key={l.id} value={l.id}>
-            {l.name} ({l.season})
-          </option>
-        ))}
-      </select>
-    </div>
+    <select
+      value={selectedLeagueId}
+      onChange={(e) => router.replace(`/admin?league=${e.target.value}`)}
+      style={{
+        position: 'absolute',
+        inset: 0,
+        width: '100%',
+        height: '100%',
+        opacity: 0,
+        cursor: 'pointer',
+        zIndex: 1,
+      }}
+    >
+      {leagues.map((l) => (
+        <option key={l.id} value={l.id}>
+          {l.name} ({l.season})
+        </option>
+      ))}
+    </select>
   );
 }

@@ -1,26 +1,168 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --ink: #221A10;
+  --ink-deep: #15110a;
+  --paper: #ECE0C4;
+  --paper-card: #FBF5E6;
+  --paper-stub: #F2E6C9;
+  --paper-row-dead: #F4ECDB;
+  --varsity-red: #A12821;
+  --gold: #C68A2E;
+  --field-green: #3D5635;
+  --amber: #C08A2E;
+  --amber-text: #9A6A1D;
+  --amber-bg: #F4E7C2;
+  --amber-border: #B08A36;
+  --mono-muted: #7A6A4F;
+  --text-muted: #5B4A2A;
+  --text-faint: #6B583A;
+  --hairline: #E3D4AD;
+  --hairline-dash: #C9B58A;
+  --nav-inactive: #8A7A5C;
+  --disabled-text: #A8966F;
+  --disabled-border: #C8B58A;
+  --cream-on-red: #F0C9C6;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-ink: #221A10;
+  --color-paper: #ECE0C4;
+  --color-paper-card: #FBF5E6;
+  --color-paper-stub: #F2E6C9;
+  --color-paper-row-dead: #F4ECDB;
+  --color-varsity-red: #A12821;
+  --color-gold: #C68A2E;
+  --color-field-green: #3D5635;
+  --color-amber: #C08A2E;
+  --color-mono-muted: #7A6A4F;
+  --color-text-muted: #5B4A2A;
+  --color-hairline: #E3D4AD;
+  --color-nav-inactive: #8A7A5C;
+  --color-disabled-text: #A8966F;
+
+  --font-oswald: var(--font-oswald-var);
+  --font-spectral: var(--font-spectral-var);
+  --font-mono-sp: var(--font-spline-mono-var);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html,
+body {
+  background-color: var(--paper);
+  background-image: repeating-linear-gradient(
+    135deg,
+    rgba(120, 90, 40, 0.035) 0 2px,
+    transparent 2px 7px
+  );
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  color: var(--ink);
+  font-family: var(--font-spectral-var), 'Spectral', Georgia, serif;
+}
+
+/* Font utility classes for use in className strings */
+.f-oswald {
+  font-family: var(--font-oswald-var), 'Oswald', sans-serif;
+}
+.f-spectral {
+  font-family: var(--font-spectral-var), 'Spectral', Georgia, serif;
+}
+.f-mono {
+  font-family: var(--font-spline-mono-var), 'Spline Sans Mono', monospace;
+}
+
+/* Ticket card base */
+.ticket-card {
+  background: var(--paper-card);
+  border: 1.5px solid var(--ink);
+  border-radius: 7px;
+  box-shadow: 6px 6px 0 rgba(34, 26, 16, 0.13);
+  overflow: hidden;
+}
+
+/* Section heading with red underline accent */
+.section-heading {
+  font-family: var(--font-oswald-var), 'Oswald', sans-serif;
+  font-weight: 700;
+  font-size: 18px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--ink);
+  border-bottom: 3px solid var(--varsity-red);
+  padding-bottom: 3px;
+  display: inline-block;
+}
+
+/* Primary button (red, hard shadow) */
+.btn-primary {
+  display: block;
+  width: 100%;
+  text-align: center;
+  font-family: var(--font-oswald-var), 'Oswald', sans-serif;
+  font-weight: 700;
+  font-size: 13.5px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: #FBF5E6;
+  background: var(--varsity-red);
+  border-radius: 4px;
+  padding: 12px 6px;
+  box-shadow: 4px 4px 0 rgba(34, 26, 16, 0.18);
+  cursor: pointer;
+  border: none;
+  transition: filter 0.1s;
+}
+.btn-primary:hover {
+  filter: brightness(0.92);
+}
+.btn-primary:active {
+  transform: translate(2px, 2px);
+  box-shadow: 2px 2px 0 rgba(34, 26, 16, 0.18);
+}
+
+/* Secondary/outline button */
+.btn-outline {
+  display: block;
+  width: 100%;
+  text-align: center;
+  font-family: var(--font-oswald-var), 'Oswald', sans-serif;
+  font-weight: 600;
+  font-size: 12.5px;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: var(--ink);
+  background: transparent;
+  border: 1.5px solid var(--ink);
+  border-radius: 4px;
+  padding: 11px 6px;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+.btn-outline:hover {
+  background: rgba(34, 26, 16, 0.06);
+}
+
+/* Disabled/locked button */
+.btn-disabled {
+  display: block;
+  width: 100%;
+  text-align: center;
+  font-family: var(--font-oswald-var), 'Oswald', sans-serif;
+  font-weight: 600;
+  font-size: 12.5px;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: var(--disabled-text);
+  border: 1.5px dashed var(--disabled-border);
+  border-radius: 4px;
+  padding: 11px 6px;
+  cursor: not-allowed;
+}
+
+/* Team color chip */
+.team-chip {
+  border-radius: 3px;
+  flex-shrink: 0;
+  display: inline-block;
 }

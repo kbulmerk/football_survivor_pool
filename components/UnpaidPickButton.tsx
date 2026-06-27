@@ -17,32 +17,48 @@ export function UnpaidPickButton({
     <>
       <button
         onClick={() => setShowModal(true)}
-        className="rounded-full bg-blue-600 px-5 py-2 text-white font-semibold hover:bg-blue-700 text-sm text-center"
+        className="btn-primary f-oswald"
+        style={{ textDecoration: 'none' }}
       >
         {label}
       </button>
 
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-sm mx-4">
-            <h2 className="text-lg font-bold mb-2">Payment Required</h2>
-            <p className="text-sm text-gray-700 mb-3">
+        <div style={{ position: 'fixed', inset: 0, zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(34,26,16,0.6)' }}>
+          <div style={{ background: 'var(--paper-card)', border: '1.5px solid var(--ink)', borderRadius: '7px', boxShadow: '6px 6px 0 rgba(34,26,16,0.13)', padding: '24px', width: '100%', maxWidth: '360px', margin: '0 16px' }}>
+            <h2 className="f-oswald" style={{ fontWeight: 700, fontSize: '22px', textTransform: 'uppercase', color: 'var(--ink)', marginBottom: '4px' }}>
+              Payment Required
+            </h2>
+            <p className="f-spectral" style={{ fontSize: '13.5px', color: 'var(--text-muted)', lineHeight: 1.45, marginBottom: '10px' }}>
               You haven&apos;t been marked as paid yet.
             </p>
-            <p className="text-sm text-gray-700 mb-3">
+            <p className="f-spectral" style={{ fontSize: '13.5px', color: 'var(--text-muted)', lineHeight: 1.45, marginBottom: '10px' }}>
               If you haven&apos;t sent your payment yet, please send{' '}
-              <span className="font-semibold">${buyIn}</span> to{' '}
-              <span className="font-semibold">{venmoHandle}</span> on Venmo.
+              <strong>${buyIn}</strong> to{' '}
+              <span className="f-mono" style={{ fontSize: '13px', color: 'var(--ink)' }}>{venmoHandle}</span>{' '}
+              on Venmo.
             </p>
-            <p className="text-sm text-gray-700 mb-5">
+            <p className="f-spectral" style={{ fontSize: '13.5px', color: 'var(--text-muted)', lineHeight: 1.45, marginBottom: '20px' }}>
               If you&apos;ve already paid, follow up with{' '}
-              <span className="font-semibold">{venmoHandle}</span> on Venmo to
-              get marked as paid.
+              <strong>{venmoHandle}</strong> to get marked as paid.
             </p>
-            <div className="flex justify-end">
+            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
               <button
                 onClick={() => setShowModal(false)}
-                className="rounded-full bg-blue-600 px-5 py-2 text-sm text-white font-semibold hover:bg-blue-700"
+                className="f-oswald"
+                style={{
+                  padding: '10px 20px',
+                  fontSize: '13px',
+                  letterSpacing: '1px',
+                  textTransform: 'uppercase',
+                  fontWeight: 700,
+                  color: '#FBF5E6',
+                  background: 'var(--varsity-red)',
+                  border: 'none',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  boxShadow: '3px 3px 0 rgba(34,26,16,0.18)',
+                }}
               >
                 Got it
               </button>

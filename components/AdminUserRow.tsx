@@ -16,50 +16,88 @@ export function AdminUserRow({ member, leagueId, currentWeek }: { member: Member
   const [isPending, startTransition] = useTransition();
 
   function handleMarkPaid() {
-    startTransition(async () => {
-      await markPaid(leagueId, member.userId, 20);
-    });
+    startTransition(async () => { await markPaid(leagueId, member.userId, 20); });
   }
 
   function handleToggleAlive() {
-    startTransition(async () => {
-      await overrideElimination(leagueId, member.userId, !member.isAlive, currentWeek);
-    });
+    startTransition(async () => { await overrideElimination(leagueId, member.userId, !member.isAlive, currentWeek); });
   }
 
   return (
-    <div className="flex items-center justify-between px-4 py-3 bg-white">
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 14px' }}>
       <div>
-        <p className="font-medium">{member.name ?? 'Unknown'}</p>
-        <p className="text-xs text-gray-400">{member.phone ?? 'No phone'}</p>
+        <p className="f-spectral" style={{ fontWeight: 600, fontSize: '15px', color: 'var(--ink)', margin: 0 }}>
+          {member.name ?? 'Unknown'}
+        </p>
+        <p className="f-mono" style={{ fontSize: '11px', color: 'var(--mono-muted)', marginTop: '2px', margin: 0 }}>
+          {member.phone ?? 'No phone'}
+        </p>
       </div>
 
-      <div className="flex items-center gap-3">
+      <div style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
+        {/* Alive/Out chip */}
         <span
-          className={`text-xs font-semibold px-2 py-1 rounded-full ${
-            member.isAlive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-600'
-          }`}
+          className="f-oswald"
+          style={{
+            fontWeight: 700,
+            fontSize: '10px',
+            letterSpacing: '1px',
+            textTransform: 'uppercase',
+            color: member.isAlive ? 'var(--field-green)' : 'var(--varsity-red)',
+            background: member.isAlive ? '#e0e8d6' : '#F4DADA',
+            borderRadius: '3px',
+            padding: '5px 8px',
+          }}
         >
-          {member.isAlive ? 'Alive' : `Out Wk${member.eliminatedWeek ?? '?'}`}
+          {member.isAlive ? 'Alive' : `Out W${member.eliminatedWeek ?? '?'}`}
         </span>
 
-        {!member.isPaid && (
+        {/* Paid status */}
+        {member.isPaid ? (
+          <span className="f-oswald" style={{ fontWeight: 600, fontSize: '11px', textTransform: 'uppercase', color: 'var(--field-green)' }}>
+            Paid ✓
+          </span>
+        ) : (
           <button
             onClick={handleMarkPaid}
             disabled={isPending}
-            className="text-xs bg-blue-600 text-white rounded px-2 py-1 hover:bg-blue-700 disabled:opacity-50"
+            className="f-oswald"
+            style={{
+              fontWeight: 600,
+              fontSize: '10px',
+              letterSpacing: '0.5px',
+              textTransform: 'uppercase',
+              color: 'var(--amber-text)',
+              border: '1.5px solid #d8b873',
+              borderRadius: '4px',
+              padding: '5px 8px',
+              background: 'transparent',
+              cursor: isPending ? 'not-allowed' : 'pointer',
+              opacity: isPending ? 0.6 : 1,
+            }}
           >
             Mark Paid
           </button>
         )}
-        {member.isPaid && (
-          <span className="text-xs text-green-600 font-semibold">Paid ✓</span>
-        )}
 
+        {/* Eliminate / Reinstate */}
         <button
           onClick={handleToggleAlive}
           disabled={isPending}
-          className="text-xs bg-gray-200 text-gray-700 rounded px-2 py-1 hover:bg-gray-300 disabled:opacity-50"
+          className="f-oswald"
+          style={{
+            fontWeight: 600,
+            fontSize: '10px',
+            letterSpacing: '0.5px',
+            textTransform: 'uppercase',
+            color: member.isAlive ? 'var(--varsity-red)' : 'var(--field-green)',
+            border: `1.5px solid ${member.isAlive ? '#d99b96' : '#a9bb9f'}`,
+            borderRadius: '4px',
+            padding: '5px 8px',
+            background: 'transparent',
+            cursor: isPending ? 'not-allowed' : 'pointer',
+            opacity: isPending ? 0.6 : 1,
+          }}
         >
           {member.isAlive ? 'Eliminate' : 'Reinstate'}
         </button>

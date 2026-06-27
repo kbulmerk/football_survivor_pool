@@ -1,13 +1,13 @@
-import { and, desc, eq, ne } from 'drizzle-orm';
+import { and, desc, eq, inArray, ne } from 'drizzle-orm';
 import { redirect } from 'next/navigation';
-import Link from 'next/link';
 import { db } from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
 import { games, leagueMembers, picks, weekConfig } from '@/lib/schema';
-import { getAllLeagues, getLeagueById } from '@/app/actions/league';
+import { getMyLeagues, getLeagueById } from '@/app/actions/league';
 import { autoAssignOnDeadlinePass } from '@/lib/survivor-rules';
 import { PickForm } from '@/components/PickForm';
 import { LeaguePicker } from '@/components/LeaguePicker';
+import { LeagueSwitcherBar } from '@/components/LeagueSwitcherBar';
 
 export default async function PickPage({
   searchParams,
@@ -17,41 +17,39 @@ export default async function PickPage({
   const user = await getCurrentUser();
   const { leagueId } = await searchParams;
 
+  const myLeagues = await getMyLeagues();
+  if (myLeagues.length === 0) redirect('/dashboard?msg=join-league');
+
   let league;
   if (leagueId) {
     league = await getLeagueById(leagueId);
     if (!league) redirect('/dashboard');
   } else {
-    const allLeagues = await getAllLeagues();
-    if (allLeagues.length === 0) redirect('/dashboard');
-    if (allLeagues.length === 1) {
-      league = allLeagues[0];
+    if (myLeagues.length === 1) {
+      league = myLeagues[0];
     } else {
-      return <LeaguePicker leagues={allLeagues} targetPath="/pick" title="Make Your Pick" />;
+      const allMemberships = await db
+        .select({ leagueId: leagueMembers.leagueId, isAlive: leagueMembers.isAlive, isPaid: leagueMembers.isPaid })
+        .from(leagueMembers)
+        .where(and(eq(leagueMembers.userId, user.id), inArray(leagueMembers.leagueId, myLeagues.map((l) => l.id))));
+      const membershipMap = Object.fromEntries(
+        allMemberships.map((m) => [m.leagueId, { isAlive: m.isAlive, isPaid: m.isPaid, joined: true }])
+      );
+      return <LeaguePicker leagues={myLeagues} targetPath="/pick" title="Make Your Pick" memberships={membershipMap} />;
     }
   }
 
   const [member] = await db
     .select()
     .from(leagueMembers)
-    .where(
-      and(
-        eq(leagueMembers.leagueId, league.id),
-        eq(leagueMembers.userId, user.id)
-      )
-    );
+    .where(and(eq(leagueMembers.leagueId, league.id), eq(leagueMembers.userId, user.id)));
 
   if (!member || !member.isPaid || !member.isAlive) redirect('/dashboard');
 
   const [config] = await db
     .select()
     .from(weekConfig)
-    .where(
-      and(
-        eq(weekConfig.leagueId, league.id),
-        eq(weekConfig.isOpen, true)
-      )
-    )
+    .where(and(eq(weekConfig.leagueId, league.id), eq(weekConfig.isOpen, true)))
     .orderBy(desc(weekConfig.week))
     .limit(1);
 
@@ -63,9 +61,14 @@ export default async function PickPage({
 
   if (!config) {
     return (
-      <main className="p-8 max-w-2xl mx-auto">
-        <h1 className="text-2xl font-bold mb-4">Make Your Pick</h1>
-        <p className="text-gray-500">Picks are not open yet. Check back on Tuesday.</p>
+      <main style={{ padding: '22px 20px 16px', maxWidth: '560px', margin: '0 auto', width: '100%' }}>
+        <LeagueSwitcherBar league={league} leagues={myLeagues} targetPath="/pick" />
+        <h1 className="f-oswald" style={{ fontWeight: 700, fontSize: '34px', textTransform: 'uppercase', color: 'var(--ink)', lineHeight: 0.95 }}>
+          Make Your Pick
+        </h1>
+        <p className="f-spectral" style={{ fontSize: '13.5px', color: 'var(--text-muted)', marginTop: '8px', lineHeight: 1.45 }}>
+          Picks are not open yet. Check back soon.
+        </p>
       </main>
     );
   }
@@ -73,44 +76,31 @@ export default async function PickPage({
   const weekGames = await db
     .select()
     .from(games)
-    .where(
-      and(
-        eq(games.leagueId, league.id),
-        eq(games.week, config.week),
-        eq(games.isExcluded, false)
-      )
-    )
+    .where(and(eq(games.leagueId, league.id), eq(games.week, config.week), eq(games.isExcluded, false)))
     .orderBy(games.startTime);
 
   const priorPicks = await db
     .select({ team: picks.teamPicked })
     .from(picks)
-    .where(
-      and(
-        eq(picks.leagueId, league.id),
-        eq(picks.userId, user.id),
-        ne(picks.week, config.week)
-      )
-    );
+    .where(and(eq(picks.leagueId, league.id), eq(picks.userId, user.id), ne(picks.week, config.week)));
 
   const usedTeams = new Set(priorPicks.map((p) => p.team));
 
   const [currentPick] = await db
     .select()
     .from(picks)
-    .where(
-      and(
-        eq(picks.leagueId, league.id),
-        eq(picks.userId, user.id),
-        eq(picks.week, config.week)
-      )
-    );
+    .where(and(eq(picks.leagueId, league.id), eq(picks.userId, user.id), eq(picks.week, config.week)));
 
   return (
-    <main className="p-8 max-w-2xl mx-auto">
-      <h1 className="text-2xl font-bold mb-1">Week {config.week} Pick</h1>
-      <p className="text-gray-500 mb-6">
-        Pick the team you think will <strong>lose</strong>. You cannot pick the same team twice.
+    <main style={{ padding: '16px 20px 16px', maxWidth: '560px', margin: '0 auto', width: '100%' }}>
+      <LeagueSwitcherBar league={league} leagues={myLeagues} targetPath="/pick" />
+
+      <h1 className="f-oswald" style={{ fontWeight: 700, fontSize: '34px', textTransform: 'uppercase', color: 'var(--ink)', lineHeight: 0.95 }}>
+        Week {config.week} Pick
+      </h1>
+      <p className="f-spectral" style={{ fontSize: '13.5px', color: 'var(--text-muted)', marginTop: '6px', lineHeight: 1.45 }}>
+        Pick the team you think will{' '}
+        <strong style={{ color: 'var(--varsity-red)' }}>lose</strong>. You cannot pick the same team twice.
       </p>
 
       <PickForm
@@ -122,12 +112,6 @@ export default async function PickPage({
         deadline={config.deadline.toISOString()}
         locked={isLocked}
       />
-
-      <div className="mt-10 pt-6 border-t border-gray-200">
-        <Link href="/dashboard" className="text-sm text-blue-600 hover:underline">
-          ← Return to Dashboard
-        </Link>
-      </div>
     </main>
   );
 }

@@ -47,3 +47,14 @@ export async function getLeagueById(id: string) {
 export async function getAllLeagues() {
   return db.select().from(leagues).orderBy(desc(leagues.createdAt));
 }
+
+export async function getMyLeagues() {
+  const user = await getCurrentUser();
+  const rows = await db
+    .select()
+    .from(leagues)
+    .innerJoin(leagueMembers, eq(leagueMembers.leagueId, leagues.id))
+    .where(eq(leagueMembers.userId, user.id))
+    .orderBy(desc(leagues.createdAt));
+  return rows.map((r) => r.leagues);
+}

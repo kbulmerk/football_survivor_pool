@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { Geist } from 'next/font/google';
+import { Oswald, Spectral, Spline_Sans_Mono } from 'next/font/google';
 import { ClerkProvider } from '@clerk/nextjs';
 import { auth } from '@clerk/nextjs/server';
 import { db } from '@/lib/db';
@@ -8,7 +8,24 @@ import { eq } from 'drizzle-orm';
 import { NavBar } from '@/components/NavBar';
 import './globals.css';
 
-const geist = Geist({ subsets: ['latin'], variable: '--font-geist' });
+const oswald = Oswald({
+  subsets: ['latin'],
+  weight: ['400', '500', '600', '700'],
+  variable: '--font-oswald-var',
+});
+
+const spectral = Spectral({
+  subsets: ['latin'],
+  weight: ['400', '500', '600'],
+  style: ['normal', 'italic'],
+  variable: '--font-spectral-var',
+});
+
+const splineMono = Spline_Sans_Mono({
+  subsets: ['latin'],
+  weight: ['400', '500', '600', '700'],
+  variable: '--font-spline-mono-var',
+});
 
 export const metadata: Metadata = {
   title: 'Survivor Pool',
@@ -26,8 +43,11 @@ export default async function RootLayout({ children }: { children: React.ReactNo
 
   return (
     <ClerkProvider>
-      <html lang="en" className={`${geist.variable} h-full antialiased`}>
-        <body className="min-h-full flex flex-col bg-gray-50 text-gray-900">
+      <html
+        lang="en"
+        className={`${oswald.variable} ${spectral.variable} ${splineMono.variable} h-full antialiased`}
+      >
+        <body className={`min-h-full flex flex-col${userId ? ' pb-16' : ''}`}>
           {userId && <NavBar isAdmin={isAdmin} />}
           {children}
         </body>

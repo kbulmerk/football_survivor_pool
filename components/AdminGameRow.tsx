@@ -8,18 +8,16 @@ export function AdminGameRow({ game }: { game: Game }) {
   const [isPending, startTransition] = useTransition();
 
   function handleToggleExclude() {
-    startTransition(async () => {
-      await excludeGame(game.id, !game.isExcluded);
-    });
+    startTransition(async () => { await excludeGame(game.id, !game.isExcluded); });
   }
 
   return (
-    <div className="flex items-center justify-between px-4 py-3 bg-white">
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 14px' }}>
       <div>
-        <p className="font-medium text-sm">
+        <div className="f-oswald" style={{ fontWeight: 600, fontSize: '13px', textTransform: 'uppercase', color: 'var(--ink)' }}>
           {game.awayTeam} @ {game.homeTeam}
-        </p>
-        <p className="text-xs text-gray-400" suppressHydrationWarning>
+        </div>
+        <div className="f-mono" style={{ fontSize: '9.5px', color: 'var(--mono-muted)', marginTop: '2px' }} suppressHydrationWarning>
           {new Date(game.startTime).toLocaleString('en-US', {
             weekday: 'short',
             month: 'short',
@@ -27,23 +25,32 @@ export function AdminGameRow({ game }: { game: Game }) {
             hour: 'numeric',
             minute: '2-digit',
           })}
-        </p>
+        </div>
       </div>
 
-      <div className="flex items-center gap-3">
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
         {game.winner && (
-          <span className="text-xs text-gray-500">
-            Winner: <strong>{game.winner}</strong>
+          <span className="f-mono" style={{ fontSize: '10px', color: 'var(--mono-muted)' }}>
+            W: <strong>{game.winner}</strong>
           </span>
         )}
         <button
           onClick={handleToggleExclude}
           disabled={isPending}
-          className={`text-xs rounded px-2 py-1 disabled:opacity-50 ${
-            game.isExcluded
-              ? 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-              : 'bg-red-100 text-red-700 hover:bg-red-200'
-          }`}
+          className="f-oswald"
+          style={{
+            fontWeight: 600,
+            fontSize: '11px',
+            letterSpacing: '0.5px',
+            textTransform: 'uppercase',
+            color: game.isExcluded ? 'var(--mono-muted)' : 'var(--varsity-red)',
+            border: `1.5px solid ${game.isExcluded ? 'var(--hairline)' : '#d99b96'}`,
+            borderRadius: '4px',
+            padding: '6px 11px',
+            background: 'transparent',
+            cursor: isPending ? 'not-allowed' : 'pointer',
+            opacity: isPending ? 0.6 : 1,
+          }}
         >
           {game.isExcluded ? 'Un-exclude' : 'Exclude'}
         </button>
