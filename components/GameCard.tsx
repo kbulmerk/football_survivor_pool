@@ -10,10 +10,14 @@ interface GameCardProps {
   usedTeams: string[];
   onSelect: (team: string) => void;
   locked?: boolean;
+  records?: Record<string, string>;
 }
 
-export function GameCard({ game, selected, usedTeams, onSelect, locked = false }: GameCardProps) {
-  const teams = [game.awayTeam, game.homeTeam];
+export function GameCard({ game, selected, usedTeams, onSelect, locked = false, records = {} }: GameCardProps) {
+  const teams = [
+    { name: game.awayTeam, isHome: false },
+    { name: game.homeTeam, isHome: true },
+  ];
 
   const startLabel = new Date(game.startTime).toLocaleString('en-US', {
     weekday: 'short',
@@ -47,29 +51,30 @@ export function GameCard({ game, selected, usedTeams, onSelect, locked = false }
       </div>
 
       {/* Team buttons */}
-      <TeamButtons teams={teams} selected={selected} usedTeams={usedTeams} locked={locked} onSelect={onSelect} />
+      <TeamButtons teams={teams} records={records} selected={selected} usedTeams={usedTeams} locked={locked} onSelect={onSelect} />
     </div>
   );
 }
 
-function TeamButtons({ teams, selected, usedTeams, locked, onSelect }: {
-  teams: string[];
+function TeamButtons({ teams, records, selected, usedTeams, locked, onSelect }: {
+  teams: { name: string; isHome: boolean }[];
+  records: Record<string, string>;
   selected: string | null;
   usedTeams: string[];
   locked: boolean;
   onSelect: (team: string) => void;
 }) {
   const [hoveredTeam, setHoveredTeam] = useState<string | null>(null);
-  const anySelectedInGame = selected !== null && teams.includes(selected);
+  const anySelectedInGame = selected !== null && teams.some((t) => t.name === selected);
 
   return (
     <div style={{ display: 'flex' }}>
       {teams.map((team, i) => {
-        const isUsed = usedTeams.includes(team);
-        const isSelected = selected === team;
+        const isUsed = usedTeams.includes(team.name);
+        const isSelected = selected === team.name;
         const isDisabled = isUsed || locked;
-        const isHovered = hoveredTeam === team && !isDisabled && !isSelected;
-        const teamColor = getTeamColor(team);
+        const isHovered = hoveredTeam === team.name && !isDisabled && !isSelected;
+        const teamColor = getTeamColor(team.name);
         const isLast = i === teams.length - 1;
 
         const borderRight = !isLast
@@ -78,11 +83,21 @@ function TeamButtons({ teams, selected, usedTeams, locked, onSelect }: {
             : '1.5px solid var(--hairline)'
           : undefined;
 
+        const record = records[team.name];
+        const homeAwayLabel = team.isHome ? 'HOME' : 'AWAY';
+        const subLabel = isUsed
+          ? 'USED'
+          : isSelected
+          ? 'YOUR PICK TO LOSE'
+          : record
+          ? `${getTeamCity(team.name)} · ${homeAwayLabel} · ${record}`
+          : `${getTeamCity(team.name)} · ${homeAwayLabel}`;
+
         return (
           <button
-            key={team}
-            onClick={() => !isDisabled && onSelect(team)}
-            onMouseEnter={() => setHoveredTeam(team)}
+            key={team.name}
+            onClick={() => !isDisabled && onSelect(team.name)}
+            onMouseEnter={() => setHoveredTeam(team.name)}
             onMouseLeave={() => setHoveredTeam(null)}
             disabled={isDisabled}
             style={{
@@ -123,7 +138,7 @@ function TeamButtons({ teams, selected, usedTeams, locked, onSelect }: {
                   textDecoration: isUsed ? 'line-through' : 'none',
                 }}
               >
-                {team}
+                {team.name}
               </div>
               <div
                 className="f-mono"
@@ -134,7 +149,7 @@ function TeamButtons({ teams, selected, usedTeams, locked, onSelect }: {
                   color: isSelected ? 'var(--cream-on-red)' : 'var(--disabled-text)',
                 }}
               >
-                {isUsed ? 'USED' : isSelected ? 'YOUR PICK TO LOSE' : getTeamCity(team)}
+                {subLabel}
               </div>
             </div>
           </button>

@@ -60,6 +60,23 @@ export default async function DashboardPage({
 
   return (
     <main style={{ padding: '22px 20px 16px', maxWidth: '560px', margin: '0 auto', width: '100%' }}>
+      {msg === 'not-paid' && (
+        <div style={{ marginBottom: '16px', background: 'var(--varsity-red)', border: '1.5px solid var(--ink)', borderRadius: '6px', boxShadow: '4px 4px 0 rgba(34,26,16,0.18)', overflow: 'hidden' }}>
+          <div style={{ padding: '7px 14px', background: 'rgba(0,0,0,0.18)', borderBottom: '1px solid rgba(0,0,0,0.15)' }}>
+            <span className="f-mono" style={{ fontSize: '10px', letterSpacing: '2.5px', color: 'var(--cream-on-red)', textTransform: 'uppercase' }}>
+              ACTION REQUIRED
+            </span>
+          </div>
+          <div style={{ padding: '12px 14px' }}>
+            <div className="f-oswald" style={{ fontWeight: 700, fontSize: '18px', letterSpacing: '0.5px', color: '#FBF5E6', textTransform: 'uppercase' }}>
+              Payment required to pick
+            </div>
+            <p className="f-spectral" style={{ fontSize: '13.5px', color: 'var(--cream-on-red)', marginTop: '4px', lineHeight: 1.4 }}>
+              You can&apos;t select a team to lose until you&apos;ve been marked as paid. Make your payment and wait for admin confirmation.
+            </p>
+          </div>
+        </div>
+      )}
       {msg === 'join-league' && (
         <div style={{ marginBottom: '16px', background: 'var(--varsity-red)', border: '1.5px solid var(--ink)', borderRadius: '6px', boxShadow: '4px 4px 0 rgba(34,26,16,0.18)', overflow: 'hidden' }}>
           <div style={{ padding: '7px 14px', background: 'rgba(0,0,0,0.18)', borderBottom: '1px solid rgba(0,0,0,0.15)' }}>

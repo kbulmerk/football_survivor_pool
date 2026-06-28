@@ -14,6 +14,7 @@ interface PickFormProps {
   currentPick: string | null;
   deadline: string;
   locked?: boolean;
+  records?: Record<string, string>;
 }
 
 export function PickForm({
@@ -24,6 +25,7 @@ export function PickForm({
   currentPick,
   deadline,
   locked = false,
+  records = {},
 }: PickFormProps) {
   const [selected, setSelected] = useState<string | null>(currentPick);
   const [savedPick, setSavedPick] = useState<string | null>(currentPick);
@@ -70,6 +72,7 @@ export function PickForm({
             usedTeams={usedTeams}
             onSelect={setSelected}
             locked={locked}
+            records={records}
           />
         ))}
       </div>

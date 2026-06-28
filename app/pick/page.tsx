@@ -8,6 +8,7 @@ import { autoAssignOnDeadlinePass } from '@/lib/survivor-rules';
 import { PickForm } from '@/components/PickForm';
 import { LeaguePicker } from '@/components/LeaguePicker';
 import { LeagueSwitcherBar } from '@/components/LeagueSwitcherBar';
+import { fetchESPNGames } from '@/lib/espn';
 
 export default async function PickPage({
   searchParams,
@@ -44,7 +45,8 @@ export default async function PickPage({
     .from(leagueMembers)
     .where(and(eq(leagueMembers.leagueId, league.id), eq(leagueMembers.userId, user.id)));
 
-  if (!member || !member.isPaid || !member.isAlive) redirect('/dashboard');
+  if (!member || !member.isAlive) redirect('/dashboard');
+  if (!member.isPaid) redirect('/dashboard?msg=not-paid');
 
   const [config] = await db
     .select()
@@ -79,6 +81,13 @@ export default async function PickPage({
     .where(and(eq(games.leagueId, league.id), eq(games.week, config.week), eq(games.isExcluded, false)))
     .orderBy(games.startTime);
 
+  const espnGames = await fetchESPNGames(config.week, league.season);
+  const teamRecords: Record<string, string> = {};
+  for (const g of espnGames) {
+    if (g.homeRecord) teamRecords[g.homeTeam] = g.homeRecord;
+    if (g.awayRecord) teamRecords[g.awayTeam] = g.awayRecord;
+  }
+
   const priorPicks = await db
     .select({ team: picks.teamPicked })
     .from(picks)
@@ -111,6 +120,7 @@ export default async function PickPage({
         currentPick={currentPick?.teamPicked ?? null}
         deadline={config.deadline.toISOString()}
         locked={isLocked}
+        records={teamRecords}
       />
     </main>
   );

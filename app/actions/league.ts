@@ -34,18 +34,19 @@ export async function getActiveLeague() {
   const [league] = await db
     .select()
     .from(leagues)
+    .where(eq(leagues.status, 'active'))
     .orderBy(desc(leagues.createdAt))
     .limit(1);
   return league ?? null;
 }
 
 export async function getLeagueById(id: string) {
-  const [league] = await db.select().from(leagues).where(eq(leagues.id, id));
+  const [league] = await db.select().from(leagues).where(and(eq(leagues.id, id), eq(leagues.status, 'active')));
   return league ?? null;
 }
 
 export async function getAllLeagues() {
-  return db.select().from(leagues).orderBy(desc(leagues.createdAt));
+  return db.select().from(leagues).where(eq(leagues.status, 'active')).orderBy(desc(leagues.createdAt));
 }
 
 export async function getMyLeagues() {
@@ -54,7 +55,7 @@ export async function getMyLeagues() {
     .select()
     .from(leagues)
     .innerJoin(leagueMembers, eq(leagueMembers.leagueId, leagues.id))
-    .where(eq(leagueMembers.userId, user.id))
+    .where(and(eq(leagueMembers.userId, user.id), eq(leagues.status, 'active')))
     .orderBy(desc(leagues.createdAt));
   return rows.map((r) => r.leagues);
 }

@@ -23,6 +23,7 @@ export const leagues = pgTable('leagues', {
   season: integer('season').notNull(),
   buyIn: numeric('buy_in', { precision: 10, scale: 2 }).notNull().default('20'),
   venmoHandle: text('venmo_handle').notNull(),
+  status: text('status').$type<'active' | 'completed' | 'deleted'>().notNull().default('active'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 

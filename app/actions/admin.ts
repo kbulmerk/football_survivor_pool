@@ -7,6 +7,7 @@ import { db } from '@/lib/db';
 import { games, leagues, leagueMembers, paymentStatus, picks, weekConfig } from '@/lib/schema';
 import { requireAdmin } from '@/lib/auth';
 import { autoAssignMissingPicksForWeek } from '@/lib/survivor-rules';
+import { fetchESPNGames } from '@/lib/espn';
 
 export async function markPaid(leagueId: string, userId: string, amount: number) {
   const admin = await requireAdmin();
@@ -215,7 +216,30 @@ export async function createLeague(formData: FormData) {
     throw new Error('All fields are required.');
   }
 
-  await db.insert(leagues).values({ name, season, buyIn, venmoHandle });
+  const [league] = await db.insert(leagues).values({ name, season, buyIn, venmoHandle }).returning();
+
+  // Seed all 18 weeks of games from ESPN in parallel
+  const weeks = Array.from({ length: 18 }, (_, i) => i + 1);
+  const allWeekGames = await Promise.all(weeks.map((w) => fetchESPNGames(w, season)));
+
+  const gamesToInsert = allWeekGames.flatMap((weekGames, i) =>
+    weekGames.map((g) => ({
+      leagueId: league.id,
+      week: weeks[i],
+      homeTeam: g.homeTeam,
+      awayTeam: g.awayTeam,
+      startTime: g.startTime,
+      homeScore: g.homeScore,
+      awayScore: g.awayScore,
+      winner: g.winner,
+    }))
+  );
+
+  if (gamesToInsert.length > 0) {
+    await db.insert(games).values(gamesToInsert);
+  }
+
+  console.log(`[createLeague] Seeded ${gamesToInsert.length} game(s) across 18 weeks for league "${name}" (${season})`);
 
   redirect('/admin');
 }
@@ -223,7 +247,16 @@ export async function createLeague(formData: FormData) {
 export async function deleteLeague(leagueId: string) {
   await requireAdmin();
 
-  await db.delete(leagues).where(eq(leagues.id, leagueId));
+  await db.update(leagues).set({ status: 'deleted' }).where(eq(leagues.id, leagueId));
 
+  revalidatePath('/dashboard');
   redirect('/admin');
+}
+
+export async function completeLeague(leagueId: string) {
+  await requireAdmin();
+
+  await db.update(leagues).set({ status: 'completed' }).where(eq(leagues.id, leagueId));
+
+  revalidatePath('/admin');
 }

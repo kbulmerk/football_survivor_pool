@@ -1,8 +1,0 @@
-[build]
-builder = "dockerfile"
-dockerfilePath = "Dockerfile"
-
-[deploy]
-startCommand = "sh saturday-remind.sh"
-restartPolicyType = "on_failure"
-restartPolicyMaxRetries = 1
