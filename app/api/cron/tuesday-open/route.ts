@@ -10,6 +10,20 @@ function verifyCronSecret(req: NextRequest) {
   return auth === `Bearer ${process.env.CRON_SECRET}`;
 }
 
+// Returns midnight Saturday in America/New_York as a UTC Date
+function nextSaturdayMidnightET(): Date {
+  const nowUtc = new Date();
+  // Interpret current time in ET (toLocaleString trick gives ET clock values as if UTC)
+  const etNow = new Date(nowUtc.toLocaleString('en-US', { timeZone: 'America/New_York' }));
+  const daysUntilSat = ((6 - etNow.getDay()) + 7) % 7 || 7;
+  const satET = new Date(etNow);
+  satET.setDate(satET.getDate() + daysUntilSat);
+  satET.setHours(0, 0, 0, 0);
+  // Convert back to real UTC by adding the ET→UTC offset
+  const offsetMs = nowUtc.getTime() - etNow.getTime();
+  return new Date(satET.getTime() + offsetMs);
+}
+
 export async function GET(req: NextRequest) {
   if (!verifyCronSecret(req)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -74,7 +88,7 @@ export async function GET(req: NextRequest) {
 
     // ── Step 2: Refresh schedule + open the next week ────────────────────────
 
-    const [nextConfig] = await db
+    let [nextConfig] = await db
       .select()
       .from(weekConfig)
       .where(
@@ -86,6 +100,21 @@ export async function GET(req: NextRequest) {
       )
       .orderBy(weekConfig.week)
       .limit(1);
+
+    // If no pre-configured week exists and we just evaluated one, auto-create the next week's config
+    if (!nextConfig && lockedConfig) {
+      const nextWeek = lockedConfig.week + 1;
+      const deadline = nextSaturdayMidnightET();
+      const [created] = await db
+        .insert(weekConfig)
+        .values({ leagueId: league.id, week: nextWeek, deadline })
+        .onConflictDoNothing()
+        .returning();
+      if (created) {
+        nextConfig = created;
+        console.log(`[tuesday-open] League "${league.name}" — auto-created config for Week ${nextWeek} (deadline: ${deadline.toISOString()})`);
+      }
+    }
 
     if (nextConfig) {
       console.log(`[tuesday-open] League "${league.name}" — refreshing schedule for Week ${nextConfig.week}`);
