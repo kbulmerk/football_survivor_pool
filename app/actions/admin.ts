@@ -204,6 +204,28 @@ export async function resetWeek(leagueId: string, week: number) {
   revalidatePath('/pick');
 }
 
+function nextSaturdayMidnightNY(): Date {
+  const now = new Date();
+  const nyToday = now.toLocaleDateString('en-CA', { timeZone: 'America/New_York' }); // "YYYY-MM-DD"
+  const dow = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].indexOf(
+    now.toLocaleDateString('en-US', { timeZone: 'America/New_York', weekday: 'short' })
+  );
+  const daysUntilSat = dow === 6 ? 7 : 6 - dow;
+  const [y, m, d] = nyToday.split('-').map(Number);
+  const sat = new Date(y, m - 1, d + daysUntilSat);
+  const satStr = sat.toLocaleDateString('en-CA');
+
+  // Determine UTC offset for America/New_York on that Saturday by sampling noon UTC
+  const noonUTC = new Date(`${satStr}T12:00:00Z`);
+  const nyHourAtNoon = parseInt(
+    new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', hour: 'numeric', hour12: false }).format(noonUTC)
+  );
+  // midnight NY in UTC: UTC-4 (EDT) → 04:00 UTC, UTC-5 (EST) → 05:00 UTC
+  const midnightNY = new Date(`${satStr}T00:00:00Z`);
+  midnightNY.setUTCHours(12 - nyHourAtNoon);
+  return midnightNY;
+}
+
 export async function createLeague(formData: FormData) {
   await requireAdmin();
 
@@ -240,6 +262,16 @@ export async function createLeague(formData: FormData) {
   }
 
   console.log(`[createLeague] Seeded ${gamesToInsert.length} game(s) across 18 weeks for league "${name}" (${season})`);
+
+  // Auto-configure week 1: open picks with deadline at next Saturday midnight NY
+  const deadline = nextSaturdayMidnightNY();
+  await db.insert(weekConfig).values({
+    leagueId: league.id,
+    week: 1,
+    deadline,
+    isOpen: true,
+    isLocked: false,
+  });
 
   redirect('/admin');
 }

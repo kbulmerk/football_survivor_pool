@@ -45,7 +45,8 @@ export default async function PickPage({
     .from(leagueMembers)
     .where(and(eq(leagueMembers.leagueId, league.id), eq(leagueMembers.userId, user.id)));
 
-  if (!member || !member.isAlive) redirect('/dashboard');
+  if (!member) redirect('/dashboard');
+  if (!member.isAlive) redirect('/dashboard?msg=eliminated');
   if (!member.isPaid) redirect('/dashboard?msg=not-paid');
 
   const [config] = await db
