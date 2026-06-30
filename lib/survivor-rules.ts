@@ -1,6 +1,8 @@
 import { and, eq, ne } from 'drizzle-orm';
 import { db } from './db';
-import { games, leagueMembers, picks, weekConfig } from './schema';
+import { games, leagues, leagueMembers, picks, weekConfig } from './schema';
+
+const TOTAL_WEEKS = 18;
 
 export async function autoAssignMissingPicksForWeek(
   leagueId: string,
@@ -64,6 +66,45 @@ export async function autoAssignOnDeadlinePass(
     .update(weekConfig)
     .set({ isLocked: true })
     .where(and(eq(weekConfig.leagueId, leagueId), eq(weekConfig.week, week)));
+}
+
+/**
+ * Marks a league completed when the pool is over. A league is over when either:
+ *  - one or fewer paid members remain alive (a winner has emerged), or
+ *  - all 18 weeks have been played and evaluated.
+ * No-op if the league isn't currently active. Returns true if it completed it.
+ */
+export async function checkAndCompleteLeague(leagueId: string): Promise<boolean> {
+  const [league] = await db.select().from(leagues).where(eq(leagues.id, leagueId));
+  if (!league || league.status !== 'active') return false;
+
+  const aliveMembers = await db
+    .select({ id: leagueMembers.id })
+    .from(leagueMembers)
+    .where(
+      and(
+        eq(leagueMembers.leagueId, leagueId),
+        eq(leagueMembers.isAlive, true),
+        eq(leagueMembers.isPaid, true)
+      )
+    );
+
+  const [finalWeek] = await db
+    .select({ id: weekConfig.id })
+    .from(weekConfig)
+    .where(
+      and(
+        eq(weekConfig.leagueId, leagueId),
+        eq(weekConfig.week, TOTAL_WEEKS),
+        eq(weekConfig.isEvaluated, true)
+      )
+    );
+
+  const shouldComplete = aliveMembers.length <= 1 || Boolean(finalWeek);
+  if (!shouldComplete) return false;
+
+  await db.update(leagues).set({ status: 'completed' }).where(eq(leagues.id, leagueId));
+  return true;
 }
 
 export type PickValidationError =

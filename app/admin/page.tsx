@@ -4,12 +4,14 @@ import Link from 'next/link';
 import { db } from '@/lib/db';
 import { requireAdmin } from '@/lib/auth';
 import { getAllLeagues } from '@/app/actions/league';
+import { getCompletedLeagues } from '@/app/actions/admin';
 import { games, leagueMembers, users, weekConfig } from '@/lib/schema';
 import { AdminUserRow } from '@/components/AdminUserRow';
 import { AdminGameRow } from '@/components/AdminGameRow';
 import { AdminWeekControls } from '@/components/AdminWeekControls';
 import { AdminLeagueSelector } from '@/components/AdminLeagueSelector';
 import { AdminDeleteLeague } from '@/components/AdminDeleteLeague';
+import { AdminExportCsv } from '@/components/AdminExportCsv';
 
 export default async function AdminPage({
   searchParams,
@@ -19,6 +21,42 @@ export default async function AdminPage({
   await requireAdmin().catch(() => redirect('/dashboard'));
 
   const allLeagues = await getAllLeagues();
+  const completedLeagues = await getCompletedLeagues();
+
+  const archiveSection = completedLeagues.length > 0 && (
+    <div style={{ marginTop: '22px' }}>
+      <span className="section-heading" style={{ marginBottom: '13px', display: 'inline-block' }}>Archive · Hall of Fame Export</span>
+      <p className="f-spectral" style={{ fontSize: '12.5px', color: 'var(--text-muted)', marginBottom: '11px', lineHeight: 1.45 }}>
+        Completed leagues. Download a league&apos;s CSV, then commit it to <code>data/hall-of-fame/</code> on GitHub to publish it on the Hall of Fame tab.
+      </p>
+      <div style={{ border: '1.5px solid var(--ink)', borderRadius: '7px', overflow: 'hidden', boxShadow: '6px 6px 0 rgba(34,26,16,0.13)', background: 'var(--paper-card)' }}>
+        {completedLeagues.map((l, i) => (
+          <div
+            key={l.id}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '10px',
+              padding: '12px 14px',
+              borderBottom: i < completedLeagues.length - 1 ? '1px solid var(--hairline)' : undefined,
+            }}
+          >
+            <div>
+              <div className="f-oswald" style={{ fontWeight: 600, fontSize: '15px', textTransform: 'uppercase', color: 'var(--ink)' }}>
+                {l.name}
+              </div>
+              <div className="f-mono" style={{ fontSize: '10px', letterSpacing: '1.5px', color: 'var(--mono-muted)', marginTop: '2px' }}>
+                SEASON {l.season} · COMPLETED
+              </div>
+            </div>
+            <AdminExportCsv leagueId={l.id} />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+
   if (allLeagues.length === 0) {
     return (
       <main style={{ padding: '22px 20px 16px', maxWidth: '680px', margin: '0 auto', width: '100%' }}>
@@ -45,6 +83,7 @@ export default async function AdminPage({
         >
           Create League
         </Link>
+        {archiveSection}
       </main>
     );
   }
@@ -136,6 +175,7 @@ export default async function AdminPage({
       <div style={{ marginBottom: '22px' }}>
         <span className="section-heading" style={{ marginBottom: '13px', display: 'inline-block' }}>Week Controls</span>
         <AdminWeekControls
+          key={`${league.id}-${selectedWeek}`}
           leagueId={league.id}
           currentConfig={currentConfig}
           allConfigs={allConfigs}
@@ -174,6 +214,8 @@ export default async function AdminPage({
           ))}
         </div>
       </div>
+
+      {archiveSection}
     </main>
   );
 }

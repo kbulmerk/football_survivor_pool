@@ -1,9 +1,9 @@
 'use client';
 
-import { useTransition, useState, useEffect } from 'react';
+import { useTransition, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { WeekConfig } from '@/lib/schema';
-import { setDeadline, openWeek, lockWeek, seedTestGames, backfillMissingPicks, clearPicksForWeek, resetWeek } from '@/app/actions/admin';
+import { setDeadline, openWeek, lockWeek, seedTestGames, backfillMissingPicks, clearPicksForWeek, completeLeague } from '@/app/actions/admin';
 
 interface Props {
   leagueId: string;
@@ -40,11 +40,6 @@ export function AdminWeekControls({ leagueId, currentConfig, allConfigs, selecte
     currentConfig?.deadline ? toLocalDatetime(new Date(currentConfig.deadline)) : ''
   );
 
-  useEffect(() => {
-    setWeek(selectedWeek);
-    setDeadlineInput(currentConfig?.deadline ? toLocalDatetime(new Date(currentConfig.deadline)) : '');
-  }, [selectedWeek, currentConfig]);
-
   const configuredWeeks = new Set(allConfigs.map((c) => c.week));
 
   function handleWeekChange(newWeek: number) {
@@ -78,9 +73,9 @@ export function AdminWeekControls({ leagueId, currentConfig, allConfigs, selecte
     startTransition(async () => { await clearPicksForWeek(leagueId, week); });
   }
 
-  function handleResetWeek() {
-    if (!confirm(`Reset Week ${week}? This will delete all picks, games, and config. This cannot be undone.`)) return;
-    startTransition(async () => { await resetWeek(leagueId, week); });
+  function handleCompleteLeague() {
+    if (!confirm('Complete this league? It will be archived and moved off the active dashboard and standings. You can then download its Hall of Fame CSV from the Admin archive.')) return;
+    startTransition(async () => { await completeLeague(leagueId); });
   }
 
   const weekStatus = currentConfig
@@ -230,20 +225,39 @@ export function AdminWeekControls({ leagueId, currentConfig, allConfigs, selecte
             <button
               onClick={handleClearPicks}
               disabled={isPending}
-              style={btnSmall('var(--varsity-red)', '#d99b96')}
+              style={{ ...btnSmall('var(--varsity-red)', '#d99b96'), gridColumn: '1 / -1' }}
             >
               Clear Picks
-            </button>
-            <button
-              onClick={handleResetWeek}
-              disabled={isPending}
-              style={btnSmall('#FBF5E6', 'var(--varsity-red)', 'var(--varsity-red)')}
-            >
-              Reset Week
             </button>
           </div>
         </>
       )}
+
+      {/* League-level action */}
+      <div style={{ height: '1.5px', background: 'var(--hairline)', margin: '14px 0' }} />
+      <button
+        onClick={handleCompleteLeague}
+        disabled={isPending}
+        className="f-oswald"
+        style={{
+          display: 'block',
+          width: '100%',
+          textAlign: 'center',
+          fontWeight: 700,
+          fontSize: '12.5px',
+          letterSpacing: '0.8px',
+          textTransform: 'uppercase',
+          color: '#FBF5E6',
+          background: 'var(--varsity-red)',
+          border: 'none',
+          borderRadius: '4px',
+          padding: '10px',
+          cursor: isPending ? 'not-allowed' : 'pointer',
+          opacity: isPending ? 0.7 : 1,
+        }}
+      >
+        Complete League
+      </button>
     </div>
   );
 }

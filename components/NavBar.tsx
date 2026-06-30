@@ -13,6 +13,7 @@ const BASE_TABS = [
   { href: '/league', label: 'Standings' },
   { href: '/pick', label: 'Pick' },
   { href: '/payment', label: 'Pay' },
+  { href: '/hall-of-fame', label: 'Hall' },
 ];
 
 export function NavBar({ isAdmin }: Props) {

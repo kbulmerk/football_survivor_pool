@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { and, eq } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { games, leagues, weekConfig } from '@/lib/schema';
-import { evaluateResults } from '@/lib/survivor-rules';
+import { evaluateResults, checkAndCompleteLeague } from '@/lib/survivor-rules';
 import { fetchESPNGames } from '@/lib/espn';
 
 function verifyCronSecret(req: NextRequest) {
@@ -82,6 +82,13 @@ export async function GET(req: NextRequest) {
       await evaluateResults(league.id, lockedConfig.week);
       await db.update(weekConfig).set({ isEvaluated: true }).where(eq(weekConfig.id, lockedConfig.id));
       console.log(`[tuesday-open] League "${league.name}" Week ${lockedConfig.week} — evaluation complete`);
+
+      // ── Auto-complete the league if a winner emerged or all 18 weeks are done ─
+      const completed = await checkAndCompleteLeague(league.id);
+      if (completed) {
+        console.log(`[tuesday-open] League "${league.name}" — pool complete, marked completed (no new week opened)`);
+        continue;
+      }
     } else {
       console.log(`[tuesday-open] League "${league.name}" — no locked/unevaluated week to process`);
     }

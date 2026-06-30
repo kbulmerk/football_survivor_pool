@@ -2,9 +2,9 @@
 
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
-import { and, eq, ne } from 'drizzle-orm';
+import { and, asc, desc, eq, ne } from 'drizzle-orm';
 import { db } from '@/lib/db';
-import { games, leagues, leagueMembers, paymentStatus, picks, weekConfig } from '@/lib/schema';
+import { games, leagues, leagueMembers, paymentStatus, picks, users, weekConfig } from '@/lib/schema';
 import { requireAdmin } from '@/lib/auth';
 import { autoAssignMissingPicksForWeek } from '@/lib/survivor-rules';
 import { fetchESPNGames } from '@/lib/espn';
@@ -291,4 +291,105 @@ export async function completeLeague(leagueId: string) {
   await db.update(leagues).set({ status: 'completed' }).where(eq(leagues.id, leagueId));
 
   revalidatePath('/admin');
+  revalidatePath('/dashboard');
+  revalidatePath('/league');
+}
+
+export async function getCompletedLeagues() {
+  await requireAdmin();
+  return db
+    .select()
+    .from(leagues)
+    .where(eq(leagues.status, 'completed'))
+    .orderBy(desc(leagues.season), desc(leagues.createdAt));
+}
+
+function csvCell(value: string): string {
+  // Quote any cell containing a comma, quote, or newline (RFC 4180).
+  if (/[",\n\r]/.test(value)) {
+    return `"${value.replace(/"/g, '""')}"`;
+  }
+  return value;
+}
+
+/**
+ * Builds a Hall of Fame CSV for a finished league. Columns:
+ *   Name, Week 1, Week 2, …, Week N, Winner
+ * Each week cell holds the full team name the player picked that week (blank
+ * once they're eliminated). The Winner column is "X" for the last player(s)
+ * standing. Returns the suggested filename plus the CSV text for download.
+ */
+export async function exportLeagueCsv(
+  leagueId: string
+): Promise<{ filename: string; content: string }> {
+  await requireAdmin();
+
+  const [league] = await db.select().from(leagues).where(eq(leagues.id, leagueId));
+  if (!league) throw new Error('League not found.');
+
+  const members = await db
+    .select({
+      userId: leagueMembers.userId,
+      name: users.name,
+      phone: users.phone,
+      isAlive: leagueMembers.isAlive,
+      eliminatedWeek: leagueMembers.eliminatedWeek,
+    })
+    .from(leagueMembers)
+    .innerJoin(users, eq(leagueMembers.userId, users.id))
+    .where(eq(leagueMembers.leagueId, leagueId))
+    .orderBy(asc(users.name));
+
+  const allPicks = await db
+    .select()
+    .from(picks)
+    .where(eq(picks.leagueId, leagueId));
+
+  const maxWeek = allPicks.reduce((m, p) => Math.max(m, p.week), 0);
+
+  // Only members who actually made a pick are real participants.
+  const pickCount = new Map<string, number>();
+  for (const p of allPicks) pickCount.set(p.userId, (pickCount.get(p.userId) ?? 0) + 1);
+  const participants = members.filter((m) => (pickCount.get(m.userId) ?? 0) > 0);
+
+  // Winner(s) = participants still alive; if everyone was eliminated, the
+  // player(s) who lasted the longest (latest elimination week).
+  const survivors = participants.filter((m) => m.isAlive);
+  let winnerIds: Set<string>;
+  if (survivors.length > 0) {
+    winnerIds = new Set(survivors.map((m) => m.userId));
+  } else {
+    const latest = participants.reduce((m, x) => Math.max(m, x.eliminatedWeek ?? 0), 0);
+    winnerIds = new Set(
+      participants.filter((m) => (m.eliminatedWeek ?? 0) === latest).map((m) => m.userId)
+    );
+  }
+
+  const header = [
+    'Name',
+    ...Array.from({ length: maxWeek }, (_, i) => `Week ${i + 1}`),
+    'Winner',
+  ];
+
+  const rows = participants.map((m) => {
+    const cells = [m.name ?? m.phone ?? 'Unknown'];
+    for (let w = 1; w <= maxWeek; w++) {
+      const pick = allPicks.find((p) => p.userId === m.userId && p.week === w);
+      cells.push(pick?.teamPicked ?? '');
+    }
+    cells.push(winnerIds.has(m.userId) ? 'X' : '');
+    return cells;
+  });
+
+  const content = [header, ...rows]
+    .map((cells) => cells.map(csvCell).join(','))
+    .join('\r\n');
+
+  const slug = league.name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+  const filename = `${league.season}-${slug || 'league'}.csv`;
+
+  return { filename, content };
 }
