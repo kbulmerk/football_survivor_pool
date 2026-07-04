@@ -12,6 +12,9 @@ import { AdminWeekControls } from '@/components/AdminWeekControls';
 import { AdminLeagueSelector } from '@/components/AdminLeagueSelector';
 import { AdminDeleteLeague } from '@/components/AdminDeleteLeague';
 import { AdminExportCsv } from '@/components/AdminExportCsv';
+import { SquaresAdminControls } from '@/components/squares/SquaresAdminControls';
+import { squaresConfig } from '@/lib/schema';
+import { getTeamAbbr } from '@/lib/team-colors';
 
 export default async function AdminPage({
   searchParams,
@@ -106,6 +109,10 @@ export default async function AdminPage({
     .where(eq(leagueMembers.leagueId, league.id))
     .orderBy(users.name);
 
+  const [squaresPoolConfig] = league.gameType === 'squares'
+    ? await db.select().from(squaresConfig).where(eq(squaresConfig.leagueId, league.id))
+    : [undefined];
+
   const allConfigs = await db
     .select()
     .from(weekConfig)
@@ -148,7 +155,7 @@ export default async function AdminPage({
         <div>
           <div className="f-mono" style={{ fontSize: '9px', letterSpacing: '1.5px', color: 'var(--mono-muted)' }}>LEAGUE</div>
           <div className="f-oswald" style={{ fontWeight: 600, fontSize: '15px', textTransform: 'uppercase', color: 'var(--ink)', marginTop: '1px' }}>
-            {league.name} ({league.season})
+            {league.name} ({league.season}) · {league.gameType === 'squares' ? 'Squares' : 'Survivor'}
           </div>
         </div>
         {allLeagues.length > 1 && (
@@ -171,37 +178,57 @@ export default async function AdminPage({
         <AdminDeleteLeague leagueId={league.id} leagueName={league.name} />
       </div>
 
-      {/* Week Controls section */}
-      <div style={{ marginBottom: '22px' }}>
-        <span className="section-heading" style={{ marginBottom: '13px', display: 'inline-block' }}>Week Controls</span>
-        <AdminWeekControls
-          key={`${league.id}-${selectedWeek}`}
-          leagueId={league.id}
-          currentConfig={currentConfig}
-          allConfigs={allConfigs}
-          selectedWeek={selectedWeek}
-        />
-      </div>
-
-      {/* Games section */}
-      <div style={{ marginBottom: '22px' }}>
-        <span className="section-heading" style={{ marginBottom: '13px', display: 'inline-block' }}>
-          Week {selectedWeek} Games
-        </span>
-        {weekGames.length === 0 ? (
-          <p className="f-spectral" style={{ color: 'var(--text-muted)', fontSize: '13.5px', marginTop: '13px' }}>
-            No games loaded for this week.
-          </p>
-        ) : (
-          <div style={{ border: '1.5px solid var(--ink)', borderRadius: '7px', overflow: 'hidden', boxShadow: '6px 6px 0 rgba(34,26,16,0.13)', background: 'var(--paper-card)' }}>
-            {weekGames.map((game, i) => (
-              <div key={game.id} style={{ borderBottom: i < weekGames.length - 1 ? '1px solid var(--hairline)' : undefined }}>
-                <AdminGameRow game={game} />
-              </div>
-            ))}
+      {league.gameType === 'squares' ? (
+        <div style={{ marginBottom: '22px' }}>
+          <span className="section-heading" style={{ marginBottom: '13px', display: 'inline-block' }}>Squares Pool</span>
+          <Link href={`/squares?leagueId=${league.id}`} className="btn-outline" style={{ textDecoration: 'none', display: 'inline-block', marginBottom: '12px' }}>
+            View Pool →
+          </Link>
+          {squaresPoolConfig && (
+            <SquaresAdminControls
+              leagueId={league.id}
+              signupLocked={squaresPoolConfig.signupLocked}
+              isLocked={squaresPoolConfig.isLocked}
+              homeTeam={getTeamAbbr(squaresPoolConfig.homeTeam)}
+              awayTeam={getTeamAbbr(squaresPoolConfig.awayTeam)}
+            />
+          )}
+        </div>
+      ) : (
+        <>
+          {/* Week Controls section */}
+          <div style={{ marginBottom: '22px' }}>
+            <span className="section-heading" style={{ marginBottom: '13px', display: 'inline-block' }}>Week Controls</span>
+            <AdminWeekControls
+              key={`${league.id}-${selectedWeek}`}
+              leagueId={league.id}
+              currentConfig={currentConfig}
+              allConfigs={allConfigs}
+              selectedWeek={selectedWeek}
+            />
           </div>
-        )}
-      </div>
+
+          {/* Games section */}
+          <div style={{ marginBottom: '22px' }}>
+            <span className="section-heading" style={{ marginBottom: '13px', display: 'inline-block' }}>
+              Week {selectedWeek} Games
+            </span>
+            {weekGames.length === 0 ? (
+              <p className="f-spectral" style={{ color: 'var(--text-muted)', fontSize: '13.5px', marginTop: '13px' }}>
+                No games loaded for this week.
+              </p>
+            ) : (
+              <div style={{ border: '1.5px solid var(--ink)', borderRadius: '7px', overflow: 'hidden', boxShadow: '6px 6px 0 rgba(34,26,16,0.13)', background: 'var(--paper-card)' }}>
+                {weekGames.map((game, i) => (
+                  <div key={game.id} style={{ borderBottom: i < weekGames.length - 1 ? '1px solid var(--hairline)' : undefined }}>
+                    <AdminGameRow game={game} />
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </>
+      )}
 
       {/* Members section */}
       <div>
@@ -209,7 +236,7 @@ export default async function AdminPage({
         <div style={{ border: '1.5px solid var(--ink)', borderRadius: '7px', overflow: 'hidden', boxShadow: '6px 6px 0 rgba(34,26,16,0.13)', background: 'var(--paper-card)' }}>
           {members.map((member, i) => (
             <div key={member.userId} style={{ borderBottom: i < members.length - 1 ? '1px solid var(--hairline)' : undefined }}>
-              <AdminUserRow member={member} leagueId={league.id} currentWeek={selectedWeek} />
+              <AdminUserRow member={member} leagueId={league.id} currentWeek={selectedWeek} gameType={league.gameType} />
             </div>
           ))}
         </div>

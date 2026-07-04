@@ -24,9 +24,11 @@ export default async function LeaguePage({
   if (leagueId) {
     league = await getLeagueById(leagueId);
     if (!league) redirect('/dashboard');
+    if (league.gameType === 'squares') redirect(`/squares?leagueId=${league.id}`);
   } else {
     if (myLeagues.length === 1) {
       league = myLeagues[0];
+      if (league.gameType === 'squares') redirect(`/squares?leagueId=${league.id}`);
     } else {
       const allMemberships = await db
         .select({ leagueId: leagueMembers.leagueId, isAlive: leagueMembers.isAlive, isPaid: leagueMembers.isPaid })

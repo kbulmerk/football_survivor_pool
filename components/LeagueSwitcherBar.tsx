@@ -116,6 +116,9 @@ export function LeagueSwitcherBar({ league, leagues, targetPath }: Props) {
               }}
             >
               {l.name}
+              <span style={{ fontWeight: 400, fontSize: '10px', letterSpacing: '1px', color: 'var(--mono-muted)', marginLeft: '6px' }}>
+                {l.gameType === 'squares' ? 'SQUARES' : 'SURVIVOR'}
+              </span>
             </button>
           ))}
         </div>

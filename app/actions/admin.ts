@@ -4,10 +4,10 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { and, asc, desc, eq, ne } from 'drizzle-orm';
 import { db } from '@/lib/db';
-import { games, leagues, leagueMembers, paymentStatus, picks, users, weekConfig } from '@/lib/schema';
+import { games, leagues, leagueMembers, paymentStatus, picks, squaresConfig, users, weekConfig } from '@/lib/schema';
 import { requireAdmin } from '@/lib/auth';
 import { autoAssignMissingPicksForWeek } from '@/lib/survivor-rules';
-import { fetchESPNGames } from '@/lib/espn';
+import { fetchESPNGameById, fetchESPNGames } from '@/lib/espn';
 
 export async function markPaid(leagueId: string, userId: string, amount: number) {
   const admin = await requireAdmin();
@@ -226,8 +226,28 @@ function nextSaturdayMidnightNY(): Date {
   return midnightNY;
 }
 
+/**
+ * Returns the ESPN games for a given week/season so an admin can pick the
+ * matchup to track when creating a Squares pool.
+ */
+export async function getGamesForWeek(week: number, season: number, seasonType: number = 2) {
+  await requireAdmin();
+  const games = await fetchESPNGames(week, season, seasonType);
+  return games.map((g) => ({
+    id: g.id,
+    homeTeam: g.homeTeam,
+    awayTeam: g.awayTeam,
+    startTime: g.startTime.toISOString(),
+  }));
+}
+
 export async function createLeague(formData: FormData) {
   await requireAdmin();
+
+  // Dispatch on game type — survivor keeps the original flow below.
+  if ((formData.get('gameType') as string) === 'squares') {
+    return createSquaresLeague(formData);
+  }
 
   const name = formData.get('name') as string;
   const season = Number(formData.get('season'));
@@ -274,6 +294,73 @@ export async function createLeague(formData: FormData) {
   });
 
   redirect('/admin');
+}
+
+/**
+ * Creates a Squares pool: a league tied to one NFL game with per-quarter payout
+ * percentages. Unlike survivor, it does NOT seed 18 weeks of games or week
+ * config — the tracked game is snapshotted into squaresConfig.
+ */
+export async function createSquaresLeague(formData: FormData) {
+  await requireAdmin();
+
+  const name = formData.get('name') as string;
+  const season = Number(formData.get('season'));
+  const buyIn = formData.get('buyIn') as string;
+  const venmoHandle = formData.get('venmoHandle') as string;
+  const week = Number(formData.get('week'));
+  const seasonType = Number(formData.get('seasonType')) || 2;
+  const espnGameId = formData.get('espnGameId') as string;
+  const payoutQ1 = Number(formData.get('payoutQ1'));
+  const payoutQ2 = Number(formData.get('payoutQ2'));
+  const payoutQ3 = Number(formData.get('payoutQ3'));
+  const payoutQ4 = Number(formData.get('payoutQ4'));
+
+  if (!name || !season || !buyIn || !venmoHandle || !week || !espnGameId) {
+    throw new Error('All fields are required.');
+  }
+
+  if (payoutQ1 + payoutQ2 + payoutQ3 + payoutQ4 !== 100) {
+    throw new Error('Quarter payouts must add up to 100%.');
+  }
+
+  const game = await fetchESPNGameById(espnGameId, week, season, seasonType);
+  if (!game) {
+    throw new Error('Selected game could not be found on ESPN.');
+  }
+
+  const [league] = await db
+    .insert(leagues)
+    .values({ name, season, buyIn, venmoHandle, gameType: 'squares' })
+    .returning();
+
+  await db.insert(squaresConfig).values({
+    leagueId: league.id,
+    espnGameId,
+    week,
+    season,
+    seasonType,
+    homeTeam: game.homeTeam,
+    awayTeam: game.awayTeam,
+    startTime: game.startTime,
+    payoutQ1,
+    payoutQ2,
+    payoutQ3,
+    payoutQ4,
+  });
+
+  redirect('/admin');
+}
+
+export async function removeMember(leagueId: string, userId: string) {
+  await requireAdmin();
+
+  await db.delete(leagueMembers).where(
+    and(eq(leagueMembers.leagueId, leagueId), eq(leagueMembers.userId, userId))
+  );
+
+  revalidatePath('/admin');
+  revalidatePath('/dashboard');
 }
 
 export async function deleteLeague(leagueId: string) {

@@ -1,10 +1,12 @@
 import Link from 'next/link';
-import { and, desc, eq } from 'drizzle-orm';
+import { and, desc, eq, sql } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
-import { leagueMembers, picks, weekConfig } from '@/lib/schema';
+import { leagueMembers, picks, squareAssignments, squaresConfig, weekConfig } from '@/lib/schema';
 import { getAllLeagues } from '@/app/actions/league';
 import { autoAssignOnDeadlinePass } from '@/lib/survivor-rules';
+import { getTeamAbbr } from '@/lib/team-colors';
+import { formatRound } from '@/lib/espn';
 import { Countdown } from '@/components/Countdown';
 import { JoinLeagueButton } from '@/components/JoinLeagueButton';
 
@@ -32,6 +34,19 @@ export default async function DashboardPage({
         .from(leagueMembers)
         .where(and(eq(leagueMembers.leagueId, league.id), eq(leagueMembers.userId, user.id)));
 
+      // Squares pools have their own minimal card — short-circuit the survivor queries.
+      if (league.gameType === 'squares') {
+        const [squares] = await db
+          .select()
+          .from(squaresConfig)
+          .where(eq(squaresConfig.leagueId, league.id));
+        const [{ count } = { count: 0 }] = await db
+          .select({ count: sql<number>`count(*)::int` })
+          .from(squareAssignments)
+          .where(eq(squareAssignments.leagueId, league.id));
+        return { league, member: member ?? null, config: null, isLocked: false, myPick: null, squares: squares ?? null, claimedCount: count };
+      }
+
       const [config] = await db
         .select()
         .from(weekConfig)
@@ -54,7 +69,7 @@ export default async function DashboardPage({
             .then((rows) => rows[0] ?? null)
         : null;
 
-      return { league, member: member ?? null, config: config ?? null, isLocked, myPick };
+      return { league, member: member ?? null, config: config ?? null, isLocked, myPick, squares: null, claimedCount: 0 };
     })
   );
 
@@ -123,8 +138,88 @@ export default async function DashboardPage({
 
       {/* League cards */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0' }}>
-        {leagueData.map(({ league, member, config, isLocked, myPick }, index) => {
+        {leagueData.map(({ league, member, config, isLocked, myPick, squares, claimedCount }, index) => {
           const serialNum = `${league.season}·${String(index + 1).padStart(2, '0')}`;
+
+          // Squares pools get a dedicated card.
+          if (league.gameType === 'squares') {
+            const poolStatus = squares?.isLocked
+              ? `Grid set · ${claimedCount}/100`
+              : squares?.signupLocked
+              ? 'Signups closed'
+              : 'Signups open';
+            const poolDot = squares?.isLocked ? 'var(--field-green)' : squares?.signupLocked ? 'var(--varsity-red)' : 'var(--amber)';
+            const poolTextColor = squares?.isLocked ? 'var(--field-green)' : squares?.signupLocked ? 'var(--varsity-red)' : 'var(--amber-text)';
+
+            const memberPaid = member?.isPaid ?? false;
+            const memberJoined = !!member;
+
+            const memberStatusDot = memberPaid ? 'var(--field-green)' : memberJoined ? 'var(--amber)' : null;
+            const memberStatusText = memberPaid ? 'Paid ✓' : memberJoined ? 'Payment pending' : null;
+            const memberStatusColor = memberPaid ? 'var(--field-green)' : 'var(--amber-text)';
+
+            return (
+              <div key={league.id} className="ticket-card" style={{ marginTop: '16px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '9px 16px', background: 'var(--ink)' }}>
+                  <span className="f-mono" style={{ fontSize: '10px', letterSpacing: '2px', color: '#ECE0C4' }}>
+                    NO. {serialNum} · SQUARES
+                  </span>
+                  <span className="f-mono" style={{ fontSize: '10px', letterSpacing: '2px', color: 'var(--gold)' }}>
+                    {squares ? formatRound(squares.seasonType, squares.week).toUpperCase() : 'SQUARES'}
+                  </span>
+                </div>
+                <div style={{ borderTop: '2px dashed var(--hairline-dash)' }} />
+                <div style={{ padding: '17px 17px 16px' }}>
+                  <div className="f-oswald" style={{ fontWeight: 700, fontSize: '27px', textTransform: 'uppercase', color: 'var(--ink)', lineHeight: 1 }}>
+                    {league.name}
+                  </div>
+                  {squares && (
+                    <div className="f-spectral" style={{ fontSize: '14px', color: 'var(--text-muted)', marginTop: '4px' }}>
+                      {getTeamAbbr(squares.awayTeam)} @ {getTeamAbbr(squares.homeTeam)}
+                    </div>
+                  )}
+                  {/* Pool state */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '9px', marginTop: '13px', padding: '9px 0', borderTop: '1.5px solid var(--hairline)', borderBottom: memberStatusText ? 'none' : '1.5px solid var(--hairline)' }}>
+                    <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: poolDot, flexShrink: 0 }} />
+                    <span className="f-oswald" style={{ fontWeight: 700, fontSize: '13px', letterSpacing: '1.5px', textTransform: 'uppercase', color: poolTextColor }}>
+                      {poolStatus}
+                    </span>
+                    {squares && !squares.isLocked && squares.startTime > new Date() && (
+                      <Countdown
+                        deadline={squares.startTime.toISOString()}
+                        variant="inline"
+                        className="f-mono"
+                        style={{ fontSize: '12px', color: 'var(--text-faint)', marginLeft: 'auto' }}
+                      />
+                    )}
+                  </div>
+                  {/* Member status */}
+                  {memberStatusText && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '9px', padding: '9px 0', borderBottom: '1.5px solid var(--hairline)' }}>
+                      <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: memberStatusDot!, flexShrink: 0 }} />
+                      <span className="f-oswald" style={{ fontWeight: 700, fontSize: '13px', letterSpacing: '1.5px', textTransform: 'uppercase', color: memberStatusColor }}>
+                        {memberStatusText}
+                      </span>
+                    </div>
+                  )}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '13px' }}>
+                    {!memberJoined && squares && !squares.signupLocked && (
+                      <JoinLeagueButton leagueId={league.id} hasPhone={!!user.phone} />
+                    )}
+                    {memberJoined && !memberPaid && (
+                      <Link href="/payment" className="btn-primary" style={{ textDecoration: 'none' }}>
+                        Make Payment →
+                      </Link>
+                    )}
+                    <Link href={`/squares?leagueId=${league.id}`} className={memberPaid || !memberJoined ? 'btn-primary' : 'btn-outline'} style={{ textDecoration: 'none' }}>
+                      View Pool →
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            );
+          }
+
           const notJoined = !member;
           const paymentPending = member && !member.isPaid;
           const aliveAndPaid = member && member.isPaid && member.isAlive;

@@ -24,6 +24,8 @@ export const leagues = pgTable('leagues', {
   buyIn: numeric('buy_in', { precision: 10, scale: 2 }).notNull().default('20'),
   venmoHandle: text('venmo_handle').notNull(),
   status: text('status').$type<'active' | 'completed' | 'deleted'>().notNull().default('active'),
+  // Discriminator between the two pool types. Existing rows backfill to 'survivor'.
+  gameType: text('game_type').$type<'survivor' | 'squares'>().notNull().default('survivor'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 
@@ -104,6 +106,82 @@ export const paymentStatus = pgTable('payment_status', {
   markedBy: text('marked_by').references(() => users.id),
 });
 
+// ----------------------------------------------------------------------------
+// Squares pools (gameType = 'squares'). One config row per squares league, tied
+// to a single NFL game. Survivor leagues never touch these tables.
+// ----------------------------------------------------------------------------
+
+export const squaresConfig = pgTable('squares_config', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  leagueId: uuid('league_id')
+    .notNull()
+    .references(() => leagues.id, { onDelete: 'cascade' })
+    .unique(),
+  // Tracked NFL game, snapshotted from ESPN at creation (squares pools do not
+  // seed the games table).
+  espnGameId: text('espn_game_id').notNull(),
+  week: integer('week').notNull(),
+  season: integer('season').notNull(),
+  // ESPN season type: 2 = regular season, 3 = postseason (playoffs + Super Bowl).
+  seasonType: integer('season_type').notNull().default(2),
+  homeTeam: text('home_team').notNull(),
+  awayTeam: text('away_team').notNull(),
+  startTime: timestamp('start_time').notNull(),
+  // Per-quarter payout percentages. Must sum to 100.
+  payoutQ1: integer('payout_q1').notNull().default(25),
+  payoutQ2: integer('payout_q2').notNull().default(25),
+  payoutQ3: integer('payout_q3').notNull().default(25),
+  payoutQ4: integer('payout_q4').notNull().default(25),
+  // Randomly decided at lock: which team labels the rows (the other labels cols).
+  homeIsRows: boolean('home_is_rows'),
+  // Signup closed (no new joins).
+  signupLocked: boolean('signup_locked').notNull().default(false),
+  signupLockedAt: timestamp('signup_locked_at'),
+  // Signup closed + grid generated.
+  isLocked: boolean('is_locked').notNull().default(false),
+  lockedAt: timestamp('locked_at'),
+  // Randomized 0-9 digit headers, generated at lock. JSON number[10], null until then.
+  rowDigits: text('row_digits'),
+  colDigits: text('col_digits'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+export const squareAssignments = pgTable(
+  'square_assignments',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    leagueId: uuid('league_id')
+      .notNull()
+      .references(() => leagues.id, { onDelete: 'cascade' }),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    row: integer('row').notNull(), // 0-9 grid position (not digit)
+    col: integer('col').notNull(), // 0-9 grid position (not digit)
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+  },
+  (t) => [unique().on(t.leagueId, t.row, t.col)]
+);
+
+export const quarterResults = pgTable(
+  'quarter_results',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    leagueId: uuid('league_id')
+      .notNull()
+      .references(() => leagues.id, { onDelete: 'cascade' }),
+    quarter: integer('quarter').notNull(), // 1-4
+    homeScore: integer('home_score').notNull(), // cumulative at end of quarter
+    awayScore: integer('away_score').notNull(),
+    winningRow: integer('winning_row'),
+    winningCol: integer('winning_col'),
+    winnerUserId: text('winner_user_id').references(() => users.id, { onDelete: 'set null' }),
+    source: text('source').$type<'auto' | 'manual'>().notNull().default('auto'),
+    recordedAt: timestamp('recorded_at').defaultNow().notNull(),
+  },
+  (t) => [unique().on(t.leagueId, t.quarter)]
+);
+
 export type User = typeof users.$inferSelect;
 export type League = typeof leagues.$inferSelect;
 export type LeagueMember = typeof leagueMembers.$inferSelect;
@@ -111,3 +189,6 @@ export type Game = typeof games.$inferSelect;
 export type Pick = typeof picks.$inferSelect;
 export type WeekConfig = typeof weekConfig.$inferSelect;
 export type PaymentStatus = typeof paymentStatus.$inferSelect;
+export type SquaresConfig = typeof squaresConfig.$inferSelect;
+export type SquareAssignment = typeof squareAssignments.$inferSelect;
+export type QuarterResult = typeof quarterResults.$inferSelect;

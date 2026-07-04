@@ -1,7 +1,7 @@
 'use client';
 
 import { useTransition } from 'react';
-import { markPaid, overrideElimination } from '@/app/actions/admin';
+import { markPaid, overrideElimination, removeMember } from '@/app/actions/admin';
 
 interface Member {
   userId: string;
@@ -12,7 +12,7 @@ interface Member {
   eliminatedWeek: number | null;
 }
 
-export function AdminUserRow({ member, leagueId, currentWeek }: { member: Member; leagueId: string; currentWeek: number }) {
+export function AdminUserRow({ member, leagueId, currentWeek, gameType = 'survivor' }: { member: Member; leagueId: string; currentWeek: number; gameType?: string }) {
   const [isPending, startTransition] = useTransition();
 
   function handleMarkPaid() {
@@ -22,6 +22,13 @@ export function AdminUserRow({ member, leagueId, currentWeek }: { member: Member
   function handleToggleAlive() {
     startTransition(async () => { await overrideElimination(leagueId, member.userId, !member.isAlive, currentWeek); });
   }
+
+  function handleRemove() {
+    if (!confirm(`Remove ${member.name ?? 'this member'} from the pool?`)) return;
+    startTransition(async () => { await removeMember(leagueId, member.userId); });
+  }
+
+  const isSquares = gameType === 'squares';
 
   return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 14px' }}>
@@ -35,23 +42,6 @@ export function AdminUserRow({ member, leagueId, currentWeek }: { member: Member
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
-        {/* Alive/Out chip */}
-        <span
-          className="f-oswald"
-          style={{
-            fontWeight: 700,
-            fontSize: '10px',
-            letterSpacing: '1px',
-            textTransform: 'uppercase',
-            color: member.isAlive ? 'var(--field-green)' : 'var(--varsity-red)',
-            background: member.isAlive ? '#e0e8d6' : '#F4DADA',
-            borderRadius: '3px',
-            padding: '5px 8px',
-          }}
-        >
-          {member.isAlive ? 'Alive' : `Out W${member.eliminatedWeek ?? '?'}`}
-        </span>
-
         {/* Paid status */}
         {member.isPaid ? (
           <span className="f-oswald" style={{ fontWeight: 600, fontSize: '11px', textTransform: 'uppercase', color: 'var(--field-green)' }}>
@@ -80,27 +70,70 @@ export function AdminUserRow({ member, leagueId, currentWeek }: { member: Member
           </button>
         )}
 
-        {/* Eliminate / Reinstate */}
-        <button
-          onClick={handleToggleAlive}
-          disabled={isPending}
-          className="f-oswald"
-          style={{
-            fontWeight: 600,
-            fontSize: '10px',
-            letterSpacing: '0.5px',
-            textTransform: 'uppercase',
-            color: member.isAlive ? 'var(--varsity-red)' : 'var(--field-green)',
-            border: `1.5px solid ${member.isAlive ? '#d99b96' : '#a9bb9f'}`,
-            borderRadius: '4px',
-            padding: '5px 8px',
-            background: 'transparent',
-            cursor: isPending ? 'not-allowed' : 'pointer',
-            opacity: isPending ? 0.6 : 1,
-          }}
-        >
-          {member.isAlive ? 'Eliminate' : 'Reinstate'}
-        </button>
+        {isSquares ? (
+          /* Squares: remove member instead of alive/eliminate controls */
+          <button
+            onClick={handleRemove}
+            disabled={isPending}
+            className="f-oswald"
+            style={{
+              fontWeight: 600,
+              fontSize: '10px',
+              letterSpacing: '0.5px',
+              textTransform: 'uppercase',
+              color: 'var(--varsity-red)',
+              border: '1.5px solid #d99b96',
+              borderRadius: '4px',
+              padding: '5px 8px',
+              background: 'transparent',
+              cursor: isPending ? 'not-allowed' : 'pointer',
+              opacity: isPending ? 0.6 : 1,
+            }}
+          >
+            Remove
+          </button>
+        ) : (
+          <>
+            {/* Alive/Out chip */}
+            <span
+              className="f-oswald"
+              style={{
+                fontWeight: 700,
+                fontSize: '10px',
+                letterSpacing: '1px',
+                textTransform: 'uppercase',
+                color: member.isAlive ? 'var(--field-green)' : 'var(--varsity-red)',
+                background: member.isAlive ? '#e0e8d6' : '#F4DADA',
+                borderRadius: '3px',
+                padding: '5px 8px',
+              }}
+            >
+              {member.isAlive ? 'Alive' : `Out W${member.eliminatedWeek ?? '?'}`}
+            </span>
+
+            {/* Eliminate / Reinstate */}
+            <button
+              onClick={handleToggleAlive}
+              disabled={isPending}
+              className="f-oswald"
+              style={{
+                fontWeight: 600,
+                fontSize: '10px',
+                letterSpacing: '0.5px',
+                textTransform: 'uppercase',
+                color: member.isAlive ? 'var(--varsity-red)' : 'var(--field-green)',
+                border: `1.5px solid ${member.isAlive ? '#d99b96' : '#a9bb9f'}`,
+                borderRadius: '4px',
+                padding: '5px 8px',
+                background: 'transparent',
+                cursor: isPending ? 'not-allowed' : 'pointer',
+                opacity: isPending ? 0.6 : 1,
+              }}
+            >
+              {member.isAlive ? 'Eliminate' : 'Reinstate'}
+            </button>
+          </>
+        )}
       </div>
     </div>
   );

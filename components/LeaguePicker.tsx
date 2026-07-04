@@ -71,8 +71,13 @@ export function LeaguePicker({ leagues, targetPath, memberships }: Props) {
                 }}
               >
                 <div>
-                  <div className="f-oswald" style={{ fontWeight: 700, fontSize: '19px', textTransform: 'uppercase', color: 'var(--ink)', lineHeight: 1 }}>
-                    {l.name}
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
+                    <div className="f-oswald" style={{ fontWeight: 700, fontSize: '19px', textTransform: 'uppercase', color: 'var(--ink)', lineHeight: 1 }}>
+                      {l.name}
+                    </div>
+                    <span className="f-mono" style={{ fontSize: '9px', letterSpacing: '1.5px', color: 'var(--mono-muted)' }}>
+                      {l.gameType === 'squares' ? 'SQUARES' : 'SURVIVOR'}
+                    </span>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '7px' }}>
                     <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: dotColor, flexShrink: 0 }} />

@@ -27,6 +27,9 @@ export async function joinLeague(leagueId: string) {
 
   await db.insert(leagueMembers).values({ leagueId, userId: user.id });
 
+  if (league.gameType === 'squares') {
+    redirect(`/squares?leagueId=${leagueId}`);
+  }
   redirect(`/league?joined=1&leagueId=${leagueId}`);
 }
 

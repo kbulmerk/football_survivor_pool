@@ -33,7 +33,7 @@ export default async function PaymentPage({
   const buyIn = Number(league.buyIn);
   const handle = league.venmoHandle.startsWith('@') ? league.venmoHandle : `@${league.venmoHandle}`;
   const handleRaw = league.venmoHandle.replace(/^@/, '');
-  const venmoUrl = `https://venmo.com/${handleRaw}?txn=pay&amount=${buyIn}&note=${encodeURIComponent(`Survivor Pool ${league.season}`)}`;
+  const venmoUrl = `https://venmo.com/${handleRaw}?txn=pay&amount=${buyIn}&note=${encodeURIComponent(league.name)}`;
 
   return (
     <main style={{ padding: '22px 20px 16px', maxWidth: '560px', margin: '0 auto', width: '100%' }}>
@@ -87,7 +87,7 @@ export default async function PaymentPage({
                 Send to{' '}
                 <strong className="f-mono" style={{ fontSize: '13px', color: 'var(--ink)', fontWeight: 600 }}>{handle}</strong>{' '}
                 on Venmo with the note{' '}
-                <em style={{ color: 'var(--varsity-red)' }}>Survivor Pool {league.season}</em>.
+                <em style={{ color: 'var(--varsity-red)' }}>{league.name}</em>.
               </p>
               <a
                 href={venmoUrl}

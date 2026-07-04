@@ -27,7 +27,7 @@ export function AdminLeagueSelector({ leagues, selectedLeagueId }: Props) {
     >
       {leagues.map((l) => (
         <option key={l.id} value={l.id}>
-          {l.name} ({l.season})
+          {l.name} ({l.season}) · {l.gameType === 'squares' ? 'Squares' : 'Survivor'}
         </option>
       ))}
     </select>
