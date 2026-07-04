@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { and, desc, eq, sql } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
-import { leagueMembers, picks, squareAssignments, squaresConfig, weekConfig } from '@/lib/schema';
+import { leagueMembers, picks, quarterResults, squareAssignments, squaresConfig, weekConfig } from '@/lib/schema';
 import { getAllLeagues } from '@/app/actions/league';
 import { autoAssignOnDeadlinePass } from '@/lib/survivor-rules';
 import { getTeamAbbr } from '@/lib/team-colors';
@@ -44,7 +44,11 @@ export default async function DashboardPage({
           .select({ count: sql<number>`count(*)::int` })
           .from(squareAssignments)
           .where(eq(squareAssignments.leagueId, league.id));
-        return { league, member: member ?? null, config: null, isLocked: false, myPick: null, squares: squares ?? null, claimedCount: count };
+        const quartersRows = await db
+          .select({ quarter: quarterResults.quarter })
+          .from(quarterResults)
+          .where(eq(quarterResults.leagueId, league.id));
+        return { league, member: member ?? null, config: null, isLocked: false, myPick: null, squares: squares ?? null, claimedCount: count, quarterCount: quartersRows.length };
       }
 
       const [config] = await db
@@ -69,7 +73,7 @@ export default async function DashboardPage({
             .then((rows) => rows[0] ?? null)
         : null;
 
-      return { league, member: member ?? null, config: config ?? null, isLocked, myPick, squares: null, claimedCount: 0 };
+      return { league, member: member ?? null, config: config ?? null, isLocked, myPick, squares: null, claimedCount: 0, quarterCount: 0 };
     })
   );
 
@@ -138,18 +142,36 @@ export default async function DashboardPage({
 
       {/* League cards */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0' }}>
-        {leagueData.map(({ league, member, config, isLocked, myPick, squares, claimedCount }, index) => {
+        {leagueData.map(({ league, member, config, isLocked, myPick, squares, quarterCount }, index) => {
           const serialNum = `${league.season}·${String(index + 1).padStart(2, '0')}`;
 
           // Squares pools get a dedicated card.
           if (league.gameType === 'squares') {
-            const poolStatus = squares?.isLocked
-              ? `Grid set · ${claimedCount}/100`
-              : squares?.signupLocked
-              ? 'Signups closed'
-              : 'Signups open';
-            const poolDot = squares?.isLocked ? 'var(--field-green)' : squares?.signupLocked ? 'var(--varsity-red)' : 'var(--amber)';
-            const poolTextColor = squares?.isLocked ? 'var(--field-green)' : squares?.signupLocked ? 'var(--varsity-red)' : 'var(--amber-text)';
+            const now = new Date();
+            let poolStatus: string;
+            let poolDot: string;
+            let poolTextColor: string;
+            if (quarterCount >= 4) {
+              poolStatus = 'Game is concluded';
+              poolDot = 'var(--mono-muted)';
+              poolTextColor = 'var(--text-muted)';
+            } else if (squares?.isLocked && squares.startTime <= now) {
+              poolStatus = 'Game is live';
+              poolDot = 'var(--varsity-red)';
+              poolTextColor = 'var(--varsity-red)';
+            } else if (squares?.isLocked) {
+              poolStatus = 'Squares assigned';
+              poolDot = 'var(--field-green)';
+              poolTextColor = 'var(--field-green)';
+            } else if (squares?.signupLocked) {
+              poolStatus = 'Sign ups closed';
+              poolDot = 'var(--varsity-red)';
+              poolTextColor = 'var(--varsity-red)';
+            } else {
+              poolStatus = 'Sign ups open';
+              poolDot = 'var(--amber)';
+              poolTextColor = 'var(--amber-text)';
+            }
 
             const memberPaid = member?.isPaid ?? false;
             const memberJoined = !!member;
@@ -184,7 +206,7 @@ export default async function DashboardPage({
                     <span className="f-oswald" style={{ fontWeight: 700, fontSize: '13px', letterSpacing: '1.5px', textTransform: 'uppercase', color: poolTextColor }}>
                       {poolStatus}
                     </span>
-                    {squares && !squares.isLocked && squares.startTime > new Date() && (
+                    {squares && squares.startTime > new Date() && (
                       <Countdown
                         deadline={squares.startTime.toISOString()}
                         variant="inline"

@@ -18,13 +18,14 @@ export default async function PickPage({
   const user = await getCurrentUser();
   const { leagueId } = await searchParams;
 
-  const myLeagues = await getMyLeagues();
+  const allMyLeagues = await getMyLeagues();
+  const myLeagues = allMyLeagues.filter((l) => l.gameType !== 'squares');
   if (myLeagues.length === 0) redirect('/dashboard?msg=join-league');
 
   let league;
   if (leagueId) {
     league = await getLeagueById(leagueId);
-    if (!league) redirect('/dashboard');
+    if (!league || league.gameType === 'squares') redirect('/dashboard');
   } else {
     if (myLeagues.length === 1) {
       league = myLeagues[0];

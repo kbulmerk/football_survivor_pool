@@ -50,14 +50,12 @@ export async function lockSignup(
 }
 
 /**
- * Generates the grid after signups are locked:
- *  - randomly distributes all 100 squares among members (floor(100/n) each,
- *    remainder randomly handed out),
- *  - randomly picks which team labels the rows,
- *  - randomly assigns the 0-9 digit headers.
+ * Step 1: Assigns all 100 squares to paid members (randomly, round-robin) and
+ * decides which team labels the rows. Does NOT reveal the digit headers yet —
+ * players can see their squares but the numbers stay hidden until generateNumbers.
  * Guarded so it can only run once.
  */
-export async function generateGrid(
+export async function generateSquares(
   leagueId: string
 ): Promise<{ ok: true } | { error: string }> {
   await requireAdmin();
@@ -67,8 +65,14 @@ export async function generateGrid(
     .from(squaresConfig)
     .where(eq(squaresConfig.leagueId, leagueId));
   if (!config) return { error: 'Squares pool not found.' };
-  if (!config.signupLocked) return { error: 'Lock signups before generating the grid.' };
-  if (config.isLocked) return { error: 'Grid has already been generated.' };
+  if (!config.signupLocked) return { error: 'Lock signups before generating squares.' };
+
+  const existing = await db
+    .select({ id: squareAssignments.id })
+    .from(squareAssignments)
+    .where(eq(squareAssignments.leagueId, leagueId))
+    .limit(1);
+  if (existing.length > 0) return { error: 'Squares have already been assigned.' };
 
   const members = await db
     .select({ userId: leagueMembers.userId })
@@ -92,6 +96,41 @@ export async function generateGrid(
 
   await db.insert(squareAssignments).values(rows);
 
+  // Decide team orientation now so the grid can be displayed with correct team labels.
+  await db
+    .update(squaresConfig)
+    .set({ homeIsRows: Math.random() < 0.5 })
+    .where(eq(squaresConfig.leagueId, leagueId));
+
+  revalidatePath('/squares');
+  revalidatePath('/admin');
+  return { ok: true };
+}
+
+/**
+ * Step 2: Randomly assigns the 0-9 digit headers to rows and columns, making
+ * the grid fully playable. Can only run after generateSquares.
+ * Guarded so it can only run once.
+ */
+export async function generateNumbers(
+  leagueId: string
+): Promise<{ ok: true } | { error: string }> {
+  await requireAdmin();
+
+  const [config] = await db
+    .select()
+    .from(squaresConfig)
+    .where(eq(squaresConfig.leagueId, leagueId));
+  if (!config) return { error: 'Squares pool not found.' };
+  if (config.isLocked) return { error: 'Numbers have already been generated.' };
+
+  const existing = await db
+    .select({ id: squareAssignments.id })
+    .from(squareAssignments)
+    .where(eq(squareAssignments.leagueId, leagueId))
+    .limit(1);
+  if (existing.length === 0) return { error: 'Generate squares first before revealing numbers.' };
+
   const rowDigits = shuffle(Array.from({ length: 10 }, (_, i) => i));
   const colDigits = shuffle(Array.from({ length: 10 }, (_, i) => i));
 
@@ -100,7 +139,6 @@ export async function generateGrid(
     .set({
       isLocked: true,
       lockedAt: new Date(),
-      homeIsRows: Math.random() < 0.5,
       rowDigits: JSON.stringify(rowDigits),
       colDigits: JSON.stringify(colDigits),
     })

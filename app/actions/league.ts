@@ -54,6 +54,10 @@ export async function getAllLeagues() {
 
 export async function getMyLeagues() {
   const user = await getCurrentUser();
+  // Admins can view any league without being a member.
+  if (user.isAdmin) {
+    return db.select().from(leagues).where(eq(leagues.status, 'active')).orderBy(desc(leagues.createdAt));
+  }
   const rows = await db
     .select()
     .from(leagues)

@@ -2,20 +2,25 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { lockSignup, generateGrid, setQuarterScore } from '@/app/actions/squares';
+import { lockSignup, generateSquares, generateNumbers, setQuarterScore } from '@/app/actions/squares';
+import { completeLeague } from '@/app/actions/admin';
 
 export function SquaresAdminControls({
   leagueId,
   signupLocked,
+  squaresAssigned,
   isLocked,
   homeTeam,
   awayTeam,
+  quartersRecorded,
 }: {
   leagueId: string;
   signupLocked: boolean;
+  squaresAssigned: boolean;
   isLocked: boolean;
   homeTeam: string;
   awayTeam: string;
+  quartersRecorded: number;
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -26,7 +31,7 @@ export function SquaresAdminControls({
   const [awayScore, setAwayScore] = useState('');
 
   function handleLockSignup() {
-    if (!confirm('Lock signups? No new players will be able to join. You can still generate the grid afterward.')) return;
+    if (!confirm('Lock signups? No new players will be able to join.')) return;
     setError(null);
     startTransition(async () => {
       const res = await lockSignup(leagueId);
@@ -35,13 +40,36 @@ export function SquaresAdminControls({
     });
   }
 
-  function handleGenerateGrid() {
-    if (!confirm('Generate the grid? This assigns all 100 squares and reveals the numbers. It cannot be undone.')) return;
+  function handleGenerateSquares() {
+    if (!confirm('Assign squares to players? This randomly deals all 100 squares. It cannot be undone.')) return;
     setError(null);
     startTransition(async () => {
-      const res = await generateGrid(leagueId);
+      const res = await generateSquares(leagueId);
       if ('error' in res) setError(res.error);
       else router.refresh();
+    });
+  }
+
+  function handleGenerateNumbers() {
+    if (!confirm('Reveal the numbers? This assigns the 0-9 digit headers and fully locks the grid. It cannot be undone.')) return;
+    setError(null);
+    startTransition(async () => {
+      const res = await generateNumbers(leagueId);
+      if ('error' in res) setError(res.error);
+      else router.refresh();
+    });
+  }
+
+  function handleComplete() {
+    if (!confirm('Mark this league as complete? It will be removed from the dashboard. This cannot be undone.')) return;
+    setError(null);
+    startTransition(async () => {
+      try {
+        await completeLeague(leagueId);
+        router.push('/admin');
+      } catch {
+        setError('Failed to complete league.');
+      }
     });
   }
 
@@ -60,6 +88,13 @@ export function SquaresAdminControls({
     });
   }
 
+  const stepStyle = (active: boolean, done: boolean): React.CSSProperties => ({
+    width: '100%',
+    cursor: active && !isPending ? 'pointer' : 'not-allowed',
+    opacity: active && !isPending ? 1 : 0.45,
+    position: 'relative',
+  });
+
   return (
     <div
       style={{
@@ -77,33 +112,45 @@ export function SquaresAdminControls({
         ADMIN CONTROLS
       </div>
 
-      {!signupLocked ? (
-        <button
-          type="button"
-          onClick={handleLockSignup}
-          disabled={isPending}
-          className="btn-primary"
-          style={{ width: '100%', cursor: isPending ? 'not-allowed' : 'pointer', opacity: isPending ? 0.7 : 1 }}
-        >
-          {isPending ? 'Locking…' : 'Lock Signups'}
-        </button>
-      ) : !isLocked ? (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          <div className="f-mono" style={{ fontSize: '10px', color: 'var(--field-green)', letterSpacing: '1px' }}>
-            ✓ Signups locked
-          </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        {/* Step 1 */}
+        <div style={{ position: 'relative' }}>
           <button
             type="button"
-            onClick={handleGenerateGrid}
-            disabled={isPending}
+            onClick={handleLockSignup}
+            disabled={signupLocked || isPending}
             className="btn-primary"
-            style={{ width: '100%', cursor: isPending ? 'not-allowed' : 'pointer', opacity: isPending ? 0.7 : 1 }}
+            style={stepStyle(!signupLocked, signupLocked)}
           >
-            {isPending ? 'Generating…' : 'Generate Grid'}
+            {signupLocked ? '✓ Signups Locked' : 'Lock Signups'}
           </button>
         </div>
-      ) : (
-        <form onSubmit={handleScore} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+
+        {/* Step 2 */}
+        <button
+          type="button"
+          onClick={handleGenerateSquares}
+          disabled={!signupLocked || squaresAssigned || isPending}
+          className="btn-primary"
+          style={stepStyle(signupLocked && !squaresAssigned, squaresAssigned)}
+        >
+          {squaresAssigned ? '✓ Squares Assigned' : 'Generate Squares'}
+        </button>
+
+        {/* Step 3 */}
+        <button
+          type="button"
+          onClick={handleGenerateNumbers}
+          disabled={!squaresAssigned || isLocked || isPending}
+          className="btn-primary"
+          style={stepStyle(squaresAssigned && !isLocked, isLocked)}
+        >
+          {isLocked ? '✓ Numbers Revealed' : 'Generate Numbers'}
+        </button>
+      </div>
+
+      {isLocked && (
+        <form onSubmit={handleScore} style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '16px', borderTop: '1px solid var(--hairline)', paddingTop: '14px' }}>
           <div className="f-oswald" style={{ fontWeight: 600, fontSize: '13px', textTransform: 'uppercase', color: 'var(--ink)' }}>
             Enter / override quarter score
           </div>
@@ -158,6 +205,20 @@ export function SquaresAdminControls({
         <p className="f-spectral" style={{ color: 'var(--varsity-red)', fontSize: '13px', marginTop: '10px' }}>
           {error}
         </p>
+      )}
+
+      {isLocked && (
+        <div style={{ marginTop: '16px', borderTop: '1px solid var(--hairline)', paddingTop: '14px' }}>
+          <button
+            type="button"
+            onClick={handleComplete}
+            disabled={isPending}
+            className="btn-outline"
+            style={{ width: '100%', cursor: isPending ? 'not-allowed' : 'pointer', opacity: isPending ? 0.7 : 1, borderColor: 'var(--mono-muted)', color: 'var(--text-muted)' }}
+          >
+            {quartersRecorded >= 4 ? 'Complete League' : 'Complete League (game still in progress)'}
+          </button>
+        </div>
       )}
     </div>
   );

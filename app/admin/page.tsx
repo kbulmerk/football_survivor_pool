@@ -5,7 +5,7 @@ import { db } from '@/lib/db';
 import { requireAdmin } from '@/lib/auth';
 import { getAllLeagues } from '@/app/actions/league';
 import { getCompletedLeagues } from '@/app/actions/admin';
-import { games, leagueMembers, users, weekConfig } from '@/lib/schema';
+import { games, leagueMembers, quarterResults, squareAssignments, squaresConfig, users, weekConfig } from '@/lib/schema';
 import { AdminUserRow } from '@/components/AdminUserRow';
 import { AdminGameRow } from '@/components/AdminGameRow';
 import { AdminWeekControls } from '@/components/AdminWeekControls';
@@ -13,7 +13,6 @@ import { AdminLeagueSelector } from '@/components/AdminLeagueSelector';
 import { AdminDeleteLeague } from '@/components/AdminDeleteLeague';
 import { AdminExportCsv } from '@/components/AdminExportCsv';
 import { SquaresAdminControls } from '@/components/squares/SquaresAdminControls';
-import { squaresConfig } from '@/lib/schema';
 import { getTeamAbbr } from '@/lib/team-colors';
 
 export default async function AdminPage({
@@ -113,6 +112,23 @@ export default async function AdminPage({
     ? await db.select().from(squaresConfig).where(eq(squaresConfig.leagueId, league.id))
     : [undefined];
 
+  const squaresAssigned = squaresPoolConfig
+    ? (await db
+        .select({ id: squareAssignments.id })
+        .from(squareAssignments)
+        .where(eq(squareAssignments.leagueId, league.id))
+        .limit(1)
+      ).length > 0
+    : false;
+
+  const squaresQuartersRecorded = squaresPoolConfig
+    ? (await db
+        .select({ quarter: quarterResults.quarter })
+        .from(quarterResults)
+        .where(eq(quarterResults.leagueId, league.id))
+      ).length
+    : 0;
+
   const allConfigs = await db
     .select()
     .from(weekConfig)
@@ -188,9 +204,11 @@ export default async function AdminPage({
             <SquaresAdminControls
               leagueId={league.id}
               signupLocked={squaresPoolConfig.signupLocked}
+              squaresAssigned={squaresAssigned}
               isLocked={squaresPoolConfig.isLocked}
               homeTeam={getTeamAbbr(squaresPoolConfig.homeTeam)}
               awayTeam={getTeamAbbr(squaresPoolConfig.awayTeam)}
+              quartersRecorded={squaresQuartersRecorded}
             />
           )}
         </div>
