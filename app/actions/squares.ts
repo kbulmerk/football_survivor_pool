@@ -77,8 +77,8 @@ export async function generateSquares(
   const members = await db
     .select({ userId: leagueMembers.userId })
     .from(leagueMembers)
-    .where(eq(leagueMembers.leagueId, leagueId));
-  if (members.length === 0) return { error: 'No members have joined yet.' };
+    .where(and(eq(leagueMembers.leagueId, leagueId), eq(leagueMembers.isPaid, true)));
+  if (members.length === 0) return { error: 'No paid members have joined yet.' };
 
   // All 100 grid cells, shuffled, then dealt round-robin to a shuffled member
   // list so the "extra" squares (the remainder) land on random members.
@@ -236,58 +236,3 @@ export async function refreshSquaresScores(
   return { ok: true };
 }
 
-/**
- * Admin manual override for a quarter's cumulative score. Upserts, marking the
- * row as `manual` so the auto poll won't clobber it.
- */
-export async function setQuarterScore(
-  leagueId: string,
-  quarter: number,
-  homeScore: number,
-  awayScore: number
-): Promise<{ ok: true } | { error: string }> {
-  await requireAdmin();
-
-  const [config] = await db
-    .select()
-    .from(squaresConfig)
-    .where(eq(squaresConfig.leagueId, leagueId));
-  if (!config) return { error: 'Squares pool not found.' };
-  if (!config.isLocked || !config.rowDigits || !config.colDigits) {
-    return { error: 'Lock and generate the grid before entering scores.' };
-  }
-  if (quarter < 1 || quarter > 4) return { error: 'Quarter must be 1-4.' };
-
-  const rowDigits = JSON.parse(config.rowDigits) as number[];
-  const colDigits = JSON.parse(config.colDigits) as number[];
-  const cell = winningCell(homeScore, awayScore, rowDigits, colDigits, config.homeIsRows!);
-  const winnerUserId = cell ? await resolveWinner(leagueId, cell.row, cell.col) : null;
-
-  await db
-    .insert(quarterResults)
-    .values({
-      leagueId,
-      quarter,
-      homeScore,
-      awayScore,
-      winningRow: cell?.row ?? null,
-      winningCol: cell?.col ?? null,
-      winnerUserId,
-      source: 'manual',
-    })
-    .onConflictDoUpdate({
-      target: [quarterResults.leagueId, quarterResults.quarter],
-      set: {
-        homeScore,
-        awayScore,
-        winningRow: cell?.row ?? null,
-        winningCol: cell?.col ?? null,
-        winnerUserId,
-        source: 'manual',
-        recordedAt: new Date(),
-      },
-    });
-
-  revalidatePath('/squares');
-  return { ok: true };
-}

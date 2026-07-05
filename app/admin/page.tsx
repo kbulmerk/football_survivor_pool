@@ -13,7 +13,6 @@ import { AdminLeagueSelector } from '@/components/AdminLeagueSelector';
 import { AdminDeleteLeague } from '@/components/AdminDeleteLeague';
 import { AdminExportCsv } from '@/components/AdminExportCsv';
 import { SquaresAdminControls } from '@/components/squares/SquaresAdminControls';
-import { getTeamAbbr } from '@/lib/team-colors';
 
 export default async function AdminPage({
   searchParams,
@@ -206,8 +205,6 @@ export default async function AdminPage({
               signupLocked={squaresPoolConfig.signupLocked}
               squaresAssigned={squaresAssigned}
               isLocked={squaresPoolConfig.isLocked}
-              homeTeam={getTeamAbbr(squaresPoolConfig.homeTeam)}
-              awayTeam={getTeamAbbr(squaresPoolConfig.awayTeam)}
               quartersRecorded={squaresQuartersRecorded}
             />
           )}
