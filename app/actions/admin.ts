@@ -382,6 +382,12 @@ export async function completeLeague(leagueId: string) {
   revalidatePath('/league');
 }
 
+export async function removeCompletedLeague(leagueId: string) {
+  await requireAdmin();
+  await db.update(leagues).set({ status: 'deleted' }).where(eq(leagues.id, leagueId));
+  revalidatePath('/admin');
+}
+
 export async function getCompletedLeagues() {
   await requireAdmin();
   return db

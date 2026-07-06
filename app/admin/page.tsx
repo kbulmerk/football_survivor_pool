@@ -12,6 +12,7 @@ import { AdminWeekControls } from '@/components/AdminWeekControls';
 import { AdminLeagueSelector } from '@/components/AdminLeagueSelector';
 import { AdminDeleteLeague } from '@/components/AdminDeleteLeague';
 import { AdminExportCsv } from '@/components/AdminExportCsv';
+import { AdminArchiveRemove } from '@/components/AdminArchiveRemove';
 import { SquaresAdminControls } from '@/components/squares/SquaresAdminControls';
 
 export default async function AdminPage({
@@ -51,7 +52,10 @@ export default async function AdminPage({
                 SEASON {l.season} · COMPLETED
               </div>
             </div>
-            <AdminExportCsv leagueId={l.id} />
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <AdminExportCsv leagueId={l.id} />
+              <AdminArchiveRemove leagueId={l.id} leagueName={l.name} />
+            </div>
           </div>
         ))}
       </div>
