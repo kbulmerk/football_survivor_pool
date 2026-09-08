@@ -96,3 +96,16 @@ Each route requires `Authorization: Bearer $CRON_SECRET` header.
    ```
 
    Replace `saturday-lock.sh` with whichever script you want to test.
+
+
+## Starting up in Sept
+```
+In September, the full sequence would be:
+
+railway up — deploys your Next.js app
+Go to Railway dashboard → add a PostgreSQL service to the project
+Railway auto-sets DATABASE_URL for you (or you set it manually)
+Run your Drizzle migrations to recreate the schema:
+
+npx drizzle-kit migrate
+```

@@ -6,3 +6,4 @@ dockerfilePath = "Dockerfile"
 startCommand = "sh saturday-lock.sh"
 restartPolicyType = "on_failure"
 restartPolicyMaxRetries = 1
+cronSchedule = "59 23 * * 6"
