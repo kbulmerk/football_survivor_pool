@@ -1,5 +1,6 @@
-FROM alpine:latest
-RUN apk add --no-cache curl
+FROM node:20-alpine
 WORKDIR /app
-COPY saturday-lock.sh .
-CMD ["sh", "saturday-lock.sh"]
+COPY package.json .
+RUN npm install --omit=dev
+COPY saturday-lock.js .
+CMD ["node", "saturday-lock.js"]

@@ -288,17 +288,11 @@ export const config = {
 # .env.local
 DATABASE_URL=postgresql://...
 API_URL=http://localhost:8000
-
-# Public (exposed to browser)
-NEXT_PUBLIC_APP_URL=http://localhost:3000
 \`\`\`
 
 \`\`\`tsx
 // Server-only
 const dbUrl = process.env.DATABASE_URL;
-
-// Client-accessible
-const appUrl = process.env.NEXT_PUBLIC_APP_URL;
 \`\`\`
 
 ## Build Commands

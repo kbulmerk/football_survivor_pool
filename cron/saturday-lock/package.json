@@ -1,0 +1,7 @@
+{
+  "name": "saturday-lock-cron",
+  "private": true,
+  "dependencies": {
+    "pg": "^8.22.0"
+  }
+}

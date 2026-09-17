@@ -1,5 +1,6 @@
-FROM alpine:latest
-RUN apk add --no-cache curl
+FROM node:20-alpine
 WORKDIR /app
-COPY tuesday-open.sh .
-CMD ["sh", "tuesday-open.sh"]
+COPY package.json .
+RUN npm install --omit=dev
+COPY tuesday-open.js .
+CMD ["node", "tuesday-open.js"]
