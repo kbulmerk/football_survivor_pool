@@ -34,28 +34,33 @@ export function LeagueChat({
   initialMessages: ChatMessage[];
 }) {
   const [isOpen, setIsOpen] = useState(false);
-  const [hasUnread, setHasUnread] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>(initialMessages);
   const [draft, setDraft] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const listRef = useRef<HTMLDivElement>(null);
   const isOpenRef = useRef(isOpen);
-  const lastIdRef = useRef<string | null>(initialMessages.at(-1)?.id ?? null);
+  const lastSeenAtRef = useRef<number>(
+    initialMessages.length ? new Date(initialMessages[initialMessages.length - 1].createdAt).getTime() : 0
+  );
 
   useEffect(() => {
     isOpenRef.current = isOpen;
-    if (isOpen) setHasUnread(false);
   }, [isOpen]);
 
   useEffect(() => {
     const interval = setInterval(async () => {
       try {
         const latest = await getMessages(leagueId);
-        const newLastId = latest.at(-1)?.id ?? null;
-        if (newLastId !== lastIdRef.current) {
-          lastIdRef.current = newLastId;
-          if (!isOpenRef.current) setHasUnread(true);
+        const newest = latest.at(-1);
+        if (isOpenRef.current) {
+          // Actively viewing — treat everything as seen so the count stays
+          // at zero and resets cleanly whenever the panel is next closed.
+          if (newest) lastSeenAtRef.current = new Date(newest.createdAt).getTime();
+        } else {
+          const newCount = latest.filter((m) => new Date(m.createdAt).getTime() > lastSeenAtRef.current).length;
+          setUnreadCount(newCount);
         }
         setChatMessages(latest);
       } catch {
@@ -84,7 +89,8 @@ export function LeagueChat({
       }
       setDraft('');
       const latest = await getMessages(leagueId);
-      lastIdRef.current = latest.at(-1)?.id ?? null;
+      const newest = latest.at(-1);
+      if (newest) lastSeenAtRef.current = new Date(newest.createdAt).getTime();
       setChatMessages(latest);
     });
   }
@@ -92,7 +98,12 @@ export function LeagueChat({
   if (!isOpen) {
     return (
       <button
-        onClick={() => setIsOpen(true)}
+        onClick={() => {
+          setIsOpen(true);
+          setUnreadCount(0);
+          const newest = chatMessages.at(-1);
+          if (newest) lastSeenAtRef.current = new Date(newest.createdAt).getTime();
+        }}
         className="f-oswald"
         aria-label="Open league chat"
         style={{
@@ -118,16 +129,28 @@ export function LeagueChat({
       >
         <ChatIcon />
         Chat
-        {hasUnread && (
+        {unreadCount > 0 && (
           <span
+            className="f-oswald"
             style={{
-              width: '8px',
-              height: '8px',
-              borderRadius: '50%',
+              position: 'absolute',
+              top: '-8px',
+              right: '-8px',
+              minWidth: '22px',
+              height: '22px',
+              padding: '0 5px',
+              borderRadius: '11px',
               background: 'var(--varsity-red)',
-              display: 'inline-block',
+              border: '2px solid var(--paper)',
+              color: '#FFFFFF',
+              fontSize: '12px',
+              fontWeight: 700,
+              lineHeight: '18px',
+              textAlign: 'center',
             }}
-          />
+          >
+            {unreadCount > 9 ? '9+' : unreadCount}
+          </span>
         )}
       </button>
     );
