@@ -22,9 +22,9 @@ const path = require('path');
 process.loadEnvFile(path.join(__dirname, '..', '.env.local'));
 
 const { Client } = require('pg');
-const { execSync } = require('child_process');
 const https = require('https');
 const { startTunnel, stopTunnel } = require('./lib/db-tunnel');
+const { sendMessage } = require('./lib/messages');
 
 // ─── CONFIG ─────────────────────────────────────────────────────────────────
 
@@ -283,6 +283,8 @@ async function processResults(finalGames) {
 
     console.log(`Found ${picks.length} pick(s) to resolve for this slate.`);
 
+    const failures = [];
+
     for (const pick of picks) {
       const eliminated = winningTeams.has(pick.team);
 
@@ -307,11 +309,12 @@ async function processResults(finalGames) {
         : `Good news — your Week ${week} pick (${pick.team}) lost! You're still alive. (This is an automated message) https://footballpool.kbulmer-projects.com/league`;
 
       try {
-        sendMessage(pick.phone, message);
-        console.log(`✓ Sent to ${pick.name || pick.phone} (${eliminated ? 'eliminated' : 'safe'})`);
+        const service = sendMessage(pick.phone, message);
+        console.log(`✓ Sent to ${pick.name || pick.phone} via ${service} (${eliminated ? 'eliminated' : 'safe'})`);
         await sleep(1000);
       } catch (err) {
         console.error(`✗ Failed to send to ${pick.name || pick.phone}: ${err.message}`);
+        failures.push({ name: pick.name, phone: pick.phone, reason: err.message });
       }
     }
 
@@ -325,8 +328,17 @@ async function processResults(finalGames) {
     }
 
     console.log('Done.');
+
+    if (failures.length > 0) {
+      console.error(`\n${failures.length} of ${picks.length} message(s) failed to send:`);
+      for (const f of failures) {
+        console.error(`  - ${f.name || f.phone} (${f.phone}): ${f.reason}`);
+      }
+      process.exitCode = 1;
+    }
   } catch (err) {
     console.error('Database error:', err.message);
+    process.exitCode = 1;
   } finally {
     await client.end();
     stopTunnel(tunnel);
@@ -357,22 +369,6 @@ async function checkAndCompleteLeague(client, leagueId, week) {
 
   await client.query(`UPDATE leagues SET status = 'completed' WHERE id = $1`, [leagueId]);
   return true;
-}
-
-function sendMessage(phoneNumber, message) {
-  const safeMessage = message.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
-  const safePhone = phoneNumber.trim();
-
-  const lines = [
-    'tell application "Messages"',
-    `  set targetService to id of 1st account whose service type = iMessage`,
-    `  set theBuddy to participant "${safePhone}" of account id targetService`,
-    `  send "${safeMessage}" to theBuddy`,
-    'end tell'
-  ];
-
-  const args = lines.map(line => `-e ${JSON.stringify(line)}`).join(' ');
-  execSync(`osascript ${args}`);
 }
 
 function sleep(ms) {

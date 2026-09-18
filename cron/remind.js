@@ -16,8 +16,8 @@ const path = require('path');
 process.loadEnvFile(path.join(__dirname, '..', '.env.local'));
 
 const { Client } = require('pg');
-const { execSync } = require('child_process');
 const { startTunnel, stopTunnel } = require('./lib/db-tunnel');
+const { sendMessage } = require('./lib/messages');
 
 // ─── CONFIG ─────────────────────────────────────────────────────────────────
 
@@ -126,42 +126,37 @@ async function main() {
 
     console.log(`Found ${users.length} alive users with phone numbers.`);
 
+    const failures = [];
+
     for (const user of users) {
       try {
         console.log(`phone number: ${user.phone}`);
-        sendMessage(user.phone, MESSAGE);
-        console.log(`✓ Sent to ${user.name || user.phone}`);
+        const service = sendMessage(user.phone, MESSAGE);
+        console.log(`✓ Sent to ${user.name || user.phone} via ${service}`);
         // Small delay between messages to avoid overwhelming Messages app
         await sleep(1000);
       } catch (err) {
         console.error(`✗ Failed to send to ${user.name || user.phone}: ${err.message}`);
+        failures.push({ name: user.name, phone: user.phone, reason: err.message });
       }
     }
 
     console.log('Done.');
+
+    if (failures.length > 0) {
+      console.error(`\n${failures.length} of ${users.length} message(s) failed to send:`);
+      for (const f of failures) {
+        console.error(`  - ${f.name || f.phone} (${f.phone}): ${f.reason}`);
+      }
+      process.exitCode = 1;
+    }
   } catch (err) {
     console.error('Database error:', err.message);
+    process.exitCode = 1;
   } finally {
     await client.end();
     stopTunnel(tunnel);
   }
-}
-
-function sendMessage(phoneNumber, message) {
-  // Escape double quotes and backslashes for AppleScript string literals
-  const safeMessage = message.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
-  const safePhone = phoneNumber.trim();
-
-  const lines = [
-    'tell application "Messages"',
-    `  set targetService to id of 1st account whose service type = iMessage`,
-    `  set theBuddy to participant "${safePhone}" of account id targetService`,
-    `  send "${safeMessage}" to theBuddy`,
-    'end tell'
-  ];
-
-  const args = lines.map(line => `-e ${JSON.stringify(line)}`).join(' ');
-  execSync(`osascript ${args}`);
 }
 
 function sleep(ms) {
