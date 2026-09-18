@@ -3,7 +3,7 @@
 /**
  * remind.js — Twice-weekly SMS reminder script
  *
- * Fetches phone numbers from your Railway PostgreSQL database
+ * Fetches phone numbers from your PostgreSQL database
  * and sends a message via your Mac's Messages app (your own number).
  *
  * Schedule with cron:

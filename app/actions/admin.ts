@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { and, asc, desc, eq, ne } from 'drizzle-orm';
 import { db } from '@/lib/db';
-import { games, leagues, leagueMembers, paymentStatus, picks, squaresConfig, users, weekConfig } from '@/lib/schema';
+import { games, leagues, leagueMembers, messages, paymentStatus, picks, squaresConfig, users, weekConfig } from '@/lib/schema';
 import { requireAdmin } from '@/lib/auth';
 import { autoAssignMissingPicksForWeek } from '@/lib/survivor-rules';
 import { fetchESPNGameById, fetchESPNGames } from '@/lib/espn';
@@ -376,6 +376,7 @@ export async function completeLeague(leagueId: string) {
   await requireAdmin();
 
   await db.update(leagues).set({ status: 'completed' }).where(eq(leagues.id, leagueId));
+  await db.delete(messages).where(eq(messages.leagueId, leagueId));
 
   revalidatePath('/admin');
   revalidatePath('/dashboard');

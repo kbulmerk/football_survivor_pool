@@ -1,6 +1,6 @@
 import { and, eq, ne } from 'drizzle-orm';
 import { db } from './db';
-import { games, leagues, leagueMembers, picks, weekConfig } from './schema';
+import { games, leagues, leagueMembers, messages, picks, weekConfig } from './schema';
 
 const TOTAL_WEEKS = 18;
 
@@ -104,6 +104,7 @@ export async function checkAndCompleteLeague(leagueId: string): Promise<boolean>
   if (!shouldComplete) return false;
 
   await db.update(leagues).set({ status: 'completed' }).where(eq(leagues.id, leagueId));
+  await db.delete(messages).where(eq(messages.leagueId, leagueId));
   return true;
 }
 

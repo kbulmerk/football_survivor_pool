@@ -8,6 +8,8 @@ import { StandingsTable } from '@/components/StandingsTable';
 import { PickHistory } from '@/components/PickHistory';
 import { LeaguePicker } from '@/components/LeaguePicker';
 import { LeagueSwitcherBar } from '@/components/LeagueSwitcherBar';
+import { LeagueChat } from '@/components/LeagueChat';
+import { getMessages } from '@/app/actions/message';
 
 export default async function LeaguePage({
   searchParams,
@@ -71,6 +73,7 @@ export default async function LeaguePage({
   const currentWeek = openWeekConfig?.week ?? null;
   const aliveCount = members.filter((m) => m.isAlive).length;
   const totalCount = members.length;
+  const chatMessages = await getMessages(league.id);
 
   return (
     <main style={{ padding: '16px 20px 16px', maxWidth: '680px', margin: '0 auto', width: '100%' }}>
@@ -110,6 +113,8 @@ export default async function LeaguePage({
       <div style={{ marginTop: '13px' }}>
         <PickHistory picks={allPicks} members={members} />
       </div>
+
+      <LeagueChat leagueId={league.id} currentUserId={user.id} initialMessages={chatMessages} />
     </main>
   );
 }

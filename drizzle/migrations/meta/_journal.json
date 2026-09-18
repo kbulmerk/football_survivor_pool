@@ -43,6 +43,13 @@
       "when": 1782860195644,
       "tag": "0005_squares_signup_locked",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1789746073649,
+      "tag": "0006_sudden_tigra",
+      "breakpoints": true
     }
   ]
 }

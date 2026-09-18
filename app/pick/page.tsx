@@ -8,6 +8,8 @@ import { autoAssignOnDeadlinePass } from '@/lib/survivor-rules';
 import { PickForm } from '@/components/PickForm';
 import { LeaguePicker } from '@/components/LeaguePicker';
 import { LeagueSwitcherBar } from '@/components/LeagueSwitcherBar';
+import { LeagueChat } from '@/components/LeagueChat';
+import { getMessages } from '@/app/actions/message';
 import { fetchESPNGames } from '@/lib/espn';
 
 export default async function PickPage({
@@ -64,6 +66,7 @@ export default async function PickPage({
   const isLocked = config ? (config.isLocked || new Date() > config.deadline) : false;
 
   if (!config) {
+    const chatMessages = await getMessages(league.id);
     return (
       <main style={{ padding: '22px 20px 16px', maxWidth: '560px', margin: '0 auto', width: '100%' }}>
         <LeagueSwitcherBar league={league} leagues={myLeagues} targetPath="/pick" />
@@ -73,6 +76,8 @@ export default async function PickPage({
         <p className="f-spectral" style={{ fontSize: '13.5px', color: 'var(--text-muted)', marginTop: '8px', lineHeight: 1.45 }}>
           Picks are not open yet. Check back soon.
         </p>
+
+        <LeagueChat leagueId={league.id} currentUserId={user.id} initialMessages={chatMessages} />
       </main>
     );
   }
@@ -102,6 +107,8 @@ export default async function PickPage({
     .from(picks)
     .where(and(eq(picks.leagueId, league.id), eq(picks.userId, user.id), eq(picks.week, config.week)));
 
+  const chatMessages = await getMessages(league.id);
+
   return (
     <main style={{ padding: '16px 20px 16px', maxWidth: '560px', margin: '0 auto', width: '100%' }}>
       <LeagueSwitcherBar league={league} leagues={myLeagues} targetPath="/pick" />
@@ -124,6 +131,8 @@ export default async function PickPage({
         locked={isLocked}
         records={teamRecords}
       />
+
+      <LeagueChat leagueId={league.id} currentUserId={user.id} initialMessages={chatMessages} />
     </main>
   );
 }

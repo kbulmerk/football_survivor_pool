@@ -182,6 +182,18 @@ export const quarterResults = pgTable(
   (t) => [unique().on(t.leagueId, t.quarter)]
 );
 
+export const messages = pgTable('messages', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  leagueId: uuid('league_id')
+    .notNull()
+    .references(() => leagues.id, { onDelete: 'cascade' }),
+  userId: text('user_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  body: text('body').notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
 export type User = typeof users.$inferSelect;
 export type League = typeof leagues.$inferSelect;
 export type LeagueMember = typeof leagueMembers.$inferSelect;
@@ -192,3 +204,4 @@ export type PaymentStatus = typeof paymentStatus.$inferSelect;
 export type SquaresConfig = typeof squaresConfig.$inferSelect;
 export type SquareAssignment = typeof squareAssignments.$inferSelect;
 export type QuarterResult = typeof quarterResults.$inferSelect;
+export type Message = typeof messages.$inferSelect;

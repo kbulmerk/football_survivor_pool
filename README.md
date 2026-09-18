@@ -1,6 +1,6 @@
 # Football Survivor Pool
 
-React web app for a family NFL survivor pool, hosted on Railway.
+React web app for a family NFL survivor pool, self-hosted on a Raspberry Pi via Docker.
 
 ## How it works
 
@@ -9,7 +9,8 @@ Each week, players pick **one NFL team to lose**. If your team wins or ties, you
 ## Stack
 
 - **Next.js** (App Router, TypeScript) — framework
-- **Railway** — hosting + PostgreSQL
+- **Docker** — self-hosted on a Raspberry Pi
+- **PostgreSQL** — database
 - **Clerk** — phone number authentication
 - **Drizzle ORM** — type-safe database queries
 - **Twilio** — SMS reminders
@@ -20,7 +21,7 @@ Each week, players pick **one NFL team to lose**. If your team wins or ties, you
 ### Prerequisites
 
 - Node.js 20.9+
-- A PostgreSQL database (local via `brew install postgresql` or a free Railway/Neon instance)
+- A PostgreSQL database (local via `brew install postgresql`, or your Pi's instance)
 - A [Clerk](https://dashboard.clerk.com) account with **phone number** auth enabled
 
 ### Steps
@@ -72,7 +73,7 @@ npm run db:migrate    # apply to database
 
 ## Cron jobs
 
-Configured as Railway Cron services that hit protected API routes:
+Configured as Dockerized cron jobs (see `cron/saturday-lock` and `cron/tuesday-open`) that hit protected API routes:
 
 | Schedule | Route | Action |
 |---|---|---|
@@ -97,15 +98,3 @@ Each route requires `Authorization: Bearer $CRON_SECRET` header.
 
    Replace `saturday-lock.sh` with whichever script you want to test.
 
-
-## Starting up in Sept
-```
-In September, the full sequence would be:
-
-railway up — deploys your Next.js app
-Go to Railway dashboard → add a PostgreSQL service to the project
-Railway auto-sets DATABASE_URL for you (or you set it manually)
-Run your Drizzle migrations to recreate the schema:
-
-npx drizzle-kit migrate
-```
