@@ -1,4 +1,4 @@
-import { and, eq, inArray } from 'drizzle-orm';
+import { and, desc, eq, inArray } from 'drizzle-orm';
 import { redirect } from 'next/navigation';
 import { db } from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
@@ -55,7 +55,7 @@ export default async function LeaguePage({
     .from(leagueMembers)
     .innerJoin(users, eq(leagueMembers.userId, users.id))
     .where(eq(leagueMembers.leagueId, league.id))
-    .orderBy(leagueMembers.isAlive, users.name);
+    .orderBy(desc(leagueMembers.isAlive), users.name);
 
   const allPicks = await db
     .select()
@@ -63,11 +63,15 @@ export default async function LeaguePage({
     .where(eq(picks.leagueId, league.id))
     .orderBy(picks.week, picks.userId);
 
+  // The "current" week stays isOpen until the next week is opened (see openWeek
+  // in app/actions/admin.ts), so this also covers the locked/evaluating window
+  // between a week's deadline and the next week opening — the standings pick
+  // column should keep showing that week's picks throughout.
   const [openWeekConfig] = await db
     .select()
     .from(weekConfig)
-    .where(and(eq(weekConfig.leagueId, league.id), eq(weekConfig.isOpen, true), eq(weekConfig.isLocked, false)))
-    .orderBy(weekConfig.week)
+    .where(and(eq(weekConfig.leagueId, league.id), eq(weekConfig.isOpen, true)))
+    .orderBy(desc(weekConfig.week))
     .limit(1);
 
   const currentWeek = openWeekConfig?.week ?? null;
