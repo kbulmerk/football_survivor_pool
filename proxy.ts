@@ -7,9 +7,20 @@ const isPublicRoute = createRouteMatcher([
   '/api/health',
 ]);
 
+// Routes that never touch a session: skip auth() entirely rather than just
+// skipping auth.protect(), since a bare auth() call still triggers Clerk's
+// dev-instance handshake redirect for any cookie-less request that sends a
+// browser-like Accept header (e.g. health checks), which loops forever for
+// non-browser clients that don't carry cookies across the handshake hop.
+const isSessionlessRoute = createRouteMatcher(['/api/cron(.*)', '/api/health']);
+
 const isRootOrLogin = createRouteMatcher(['/', '/login(.*)']);
 
 export default clerkMiddleware(async (auth, req) => {
+  if (isSessionlessRoute(req)) {
+    return;
+  }
+
   const { userId } = await auth();
 
   // Redirect signed-in users away from the root and login pages immediately,

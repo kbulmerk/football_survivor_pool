@@ -12,7 +12,7 @@ const BASE_TABS = [
   { href: '/dashboard', label: 'Home' },
   { href: '/league', label: 'Standings' },
   { href: '/pick', label: 'Pick' },
-  { href: '/payment', label: 'Pay' },
+  { href: '/rules', label: 'Rules' },
   { href: '/hall-of-fame', label: 'Hall' },
 ];
 

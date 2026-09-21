@@ -289,8 +289,11 @@ async function processResults(finalGames) {
       const eliminated = winningTeams.has(pick.team);
 
       if (DRY_RUN) {
-        console.log(`[DRY RUN] Would mark pick ${pick.pick_id} as ${eliminated ? 'eliminated' : 'correct'}${eliminated ? ` and set league_members ${pick.league_member_id} is_alive = false` : ''}.`);
-      } else if (pick.pick_id) {
+        console.log(`[DRY RUN] Would mark pick ${pick.pick_id} as ${eliminated ? 'eliminated' : 'correct'}${eliminated ? ` and set league_members ${pick.league_member_id} is_alive = false` : ''}, and text ${pick.name || pick.phone}.`);
+        continue;
+      }
+
+      if (pick.pick_id) {
         await client.query(
           `UPDATE picks SET result = $1 WHERE id = $2`,
           [eliminated ? 'eliminated' : 'correct', pick.pick_id]
