@@ -75,6 +75,19 @@ export default async function LeaguePage({
     .limit(1);
 
   const currentWeek = openWeekConfig?.week ?? null;
+
+  // The week whose results were just evaluated — this trails currentWeek by one,
+  // since tuesday-open opens the next week in the same run it evaluates this one.
+  // eliminatedWeek is stamped with this week, not currentWeek, so standings must
+  // compare against this for the "freshly eliminated" transitional display.
+  const [lastEvaluatedConfig] = await db
+    .select()
+    .from(weekConfig)
+    .where(and(eq(weekConfig.leagueId, league.id), eq(weekConfig.isEvaluated, true)))
+    .orderBy(desc(weekConfig.week))
+    .limit(1);
+
+  const lastEvaluatedWeek = lastEvaluatedConfig?.week ?? null;
   const aliveCount = members.filter((m) => m.isAlive).length;
   const totalCount = members.length;
   const chatMessages = await getMessages(league.id);
@@ -109,7 +122,12 @@ export default async function LeaguePage({
         </div>
       </div>
 
-      <StandingsTable members={members} allPicks={allPicks} currentWeek={currentWeek} />
+      <StandingsTable
+        members={members}
+        allPicks={allPicks}
+        currentWeek={currentWeek}
+        lastEvaluatedWeek={lastEvaluatedWeek}
+      />
 
       <div style={{ padding: '24px 0 0' }}>
         <span className="section-heading">Pick History</span>

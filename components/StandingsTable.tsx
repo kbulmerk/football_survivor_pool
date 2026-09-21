@@ -13,6 +13,8 @@ interface Props {
   members: Member[];
   allPicks: Pick[];
   currentWeek: number | null;
+  /** The most recently evaluated week (trails currentWeek by one — see app/league/page.tsx). */
+  lastEvaluatedWeek: number | null;
 }
 
 function TeamChip({ team, size = 11 }: { team: string; size?: number }) {
@@ -37,17 +39,26 @@ function resultBadge(pick: Pick | undefined): { label: string; color: string } {
   return { label: 'Pending', color: 'var(--amber-text)' };
 }
 
-export function StandingsTable({ members, allPicks, currentWeek }: Props) {
-  // Members freshly eliminated this week stay grouped with the alive roster —
-  // marked via the "Result" column — until currentWeek advances and they age
-  // into the permanent "Out" group below.
-  const alive = members.filter((m) => m.isAlive || m.eliminatedWeek === currentWeek);
-  const eliminated = members.filter((m) => !m.isAlive && m.eliminatedWeek !== currentWeek);
+export function StandingsTable({ members, allPicks, currentWeek, lastEvaluatedWeek }: Props) {
+  // Members eliminated by the most recently evaluated week stay grouped with the
+  // alive roster — marked via the "Result" column — until a further week is
+  // evaluated and they age into the permanent "Out" group below.
+  const alive = members.filter((m) => m.isAlive || m.eliminatedWeek === lastEvaluatedWeek);
+  const eliminated = members.filter((m) => !m.isAlive && m.eliminatedWeek !== lastEvaluatedWeek);
 
+  // Pick column: what each member picked for the upcoming (currently open) week.
   const currentPickByUser: Record<string, Pick> = {};
   if (currentWeek) {
     for (const p of allPicks.filter((p) => p.week === currentWeek)) {
       currentPickByUser[p.userId] = p;
+    }
+  }
+
+  // Result column: how each member's pick for the most recently evaluated week turned out.
+  const lastEvaluatedPickByUser: Record<string, Pick> = {};
+  if (lastEvaluatedWeek) {
+    for (const p of allPicks.filter((p) => p.week === lastEvaluatedWeek)) {
+      lastEvaluatedPickByUser[p.userId] = p;
     }
   }
 
@@ -67,14 +78,14 @@ export function StandingsTable({ members, allPicks, currentWeek }: Props) {
         {headerCell('Player', 2)}
         {headerCell('Paid', 0.7, 'center')}
         {headerCell('Status', 1.2)}
-        {currentWeek && headerCell('Result', 1.2, 'center')}
+        {lastEvaluatedWeek && headerCell('Result', 1.2, 'center')}
         {currentWeek && headerCell('Pick', 1.3, 'right')}
       </div>
 
-      {/* Alive rows (includes members eliminated this week, pending their move to "Out") */}
+      {/* Alive rows (includes members eliminated by the last evaluated week, pending their move to "Out") */}
       {alive.map((m, i) => {
         const pick = currentPickByUser[m.userId];
-        const badge = resultBadge(pick);
+        const badge = resultBadge(lastEvaluatedPickByUser[m.userId]);
         return (
           <div
             key={m.userId}
@@ -96,7 +107,7 @@ export function StandingsTable({ members, allPicks, currentWeek }: Props) {
               <span style={{ width: '9px', height: '9px', borderRadius: '50%', background: 'var(--field-green)', flexShrink: 0 }} />
               <span className="f-oswald" style={{ fontWeight: 700, fontSize: '11px', letterSpacing: '1px', textTransform: 'uppercase', color: 'var(--field-green)' }}>Alive</span>
             </span>
-            {currentWeek && (
+            {lastEvaluatedWeek && (
               <span className="f-oswald" style={{ flex: 1.2, textAlign: 'center', fontWeight: 700, fontSize: '11px', letterSpacing: '0.5px', textTransform: 'uppercase', color: badge.color }}>
                 {badge.label}
               </span>
@@ -143,7 +154,7 @@ export function StandingsTable({ members, allPicks, currentWeek }: Props) {
               Out{m.eliminatedWeek != null ? ` · W${m.eliminatedWeek}` : ''}
             </span>
           </span>
-          {currentWeek && (
+          {lastEvaluatedWeek && (
             <span className="f-mono" style={{ flex: 1.2, textAlign: 'center', fontSize: '13px', color: '#bcae8f' }}>—</span>
           )}
           {currentWeek && (
