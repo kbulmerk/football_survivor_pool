@@ -1,26 +1,11 @@
 import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server';
 import { NextResponse } from 'next/server';
 
-const isPublicRoute = createRouteMatcher([
-  '/login(.*)',
-  '/api/cron(.*)',
-  '/api/health',
-]);
-
-// Routes that never touch a session: skip auth() entirely rather than just
-// skipping auth.protect(), since a bare auth() call still triggers Clerk's
-// dev-instance handshake redirect for any cookie-less request that sends a
-// browser-like Accept header (e.g. health checks), which loops forever for
-// non-browser clients that don't carry cookies across the handshake hop.
-const isSessionlessRoute = createRouteMatcher(['/api/cron(.*)', '/api/health']);
+const isPublicRoute = createRouteMatcher(['/login(.*)']);
 
 const isRootOrLogin = createRouteMatcher(['/', '/login(.*)']);
 
 export default clerkMiddleware(async (auth, req) => {
-  if (isSessionlessRoute(req)) {
-    return;
-  }
-
   const { userId } = await auth();
 
   // Redirect signed-in users away from the root and login pages immediately,
@@ -34,9 +19,14 @@ export default clerkMiddleware(async (auth, req) => {
   }
 });
 
+// api/health and api/cron are excluded here (not just from isPublicRoute)
+// because clerkMiddleware resolves auth state for any matched request before
+// the callback runs, which triggers Clerk's dev-instance handshake redirect
+// for cookie-less requests with a browser-like Accept header — that loops
+// forever for clients (like health checks) that never carry cookies across
+// the handshake hop.
 export const config = {
   matcher: [
-    '/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)',
-    '/(api|trpc)(.*)',
+    '/((?!_next|api/health|api/cron|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)',
   ],
 };
