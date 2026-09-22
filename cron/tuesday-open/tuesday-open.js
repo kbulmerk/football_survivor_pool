@@ -129,6 +129,12 @@ async function processLeague(client, league) {
     }
     console.log(`[tuesday-open] League "${league.name}" Week ${nextConfig.week} — refreshed ${refreshed} game(s)`);
 
+    // Close any other open weeks so only one is active at a time (mirrors openWeek in app/actions/admin.ts)
+    await client.query(
+      `UPDATE week_config SET is_open = false WHERE league_id = $1 AND is_open = true AND id != $2`,
+      [league.id, nextConfig.id]
+    );
+
     await client.query(`UPDATE week_config SET is_open = true WHERE id = $1`, [nextConfig.id]);
     console.log(`[tuesday-open] League "${league.name}" — opened Week ${nextConfig.week}`);
   } else {

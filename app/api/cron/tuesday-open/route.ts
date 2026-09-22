@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { and, eq } from 'drizzle-orm';
+import { revalidatePath } from 'next/cache';
+import { and, eq, ne } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { games, leagues, weekConfig } from '@/lib/schema';
 import { evaluateResults, checkAndCompleteLeague } from '@/lib/survivor-rules';
@@ -160,12 +161,22 @@ export async function GET(req: NextRequest) {
       }
       console.log(`[tuesday-open] League "${league.name}" Week ${nextConfig.week} — refreshed ${refreshed} game(s)`);
 
+      // Close any other open weeks so only one is active at a time (mirrors openWeek in app/actions/admin.ts)
+      await db
+        .update(weekConfig)
+        .set({ isOpen: false })
+        .where(and(eq(weekConfig.leagueId, league.id), eq(weekConfig.isOpen, true), ne(weekConfig.id, nextConfig.id)));
+
       await db.update(weekConfig).set({ isOpen: true }).where(eq(weekConfig.id, nextConfig.id));
       console.log(`[tuesday-open] League "${league.name}" — opened Week ${nextConfig.week}`);
     } else {
       console.log(`[tuesday-open] League "${league.name}" — no week ready to open`);
     }
   }
+
+  revalidatePath('/league');
+  revalidatePath('/dashboard');
+  revalidatePath('/admin');
 
   console.log('[tuesday-open] Weekly cron job complete');
   return NextResponse.json({ ok: true });

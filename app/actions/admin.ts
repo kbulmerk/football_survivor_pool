@@ -90,6 +90,7 @@ export async function openWeek(leagueId: string, week: number) {
 
   revalidatePath('/admin');
   revalidatePath('/dashboard');
+  revalidatePath('/league');
 }
 
 export async function lockWeek(leagueId: string, week: number) {

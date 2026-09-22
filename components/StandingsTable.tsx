@@ -52,10 +52,12 @@ export function StandingsTable({ members, allPicks, currentWeek }: Props) {
   }
 
   // Members freshly eliminated by the most recently scored week stay grouped with
-  // the alive roster — marked via the "Result" column — until a further week is
-  // scored and they age into the permanent "Out" group below.
-  const alive = members.filter((m) => m.isAlive || lastResultPickByUser[m.userId]?.result === 'eliminated');
-  const eliminated = members.filter((m) => !m.isAlive && lastResultPickByUser[m.userId]?.result !== 'eliminated');
+  // the alive roster — marked via the "Result" column — only while that scored
+  // week is still the current one. Once the next week opens, results are stale
+  // and eliminated members age into the permanent "Out" group below.
+  const resultsAreCurrent = currentWeek !== null && lastResultWeek === currentWeek;
+  const alive = members.filter((m) => m.isAlive || (resultsAreCurrent && lastResultPickByUser[m.userId]?.result === 'eliminated'));
+  const eliminated = members.filter((m) => !m.isAlive && !(resultsAreCurrent && lastResultPickByUser[m.userId]?.result === 'eliminated'));
 
   // Pick column: what each member picked for the upcoming (currently open) week.
   const currentPickByUser: Record<string, Pick> = {};
@@ -81,7 +83,7 @@ export function StandingsTable({ members, allPicks, currentWeek }: Props) {
         {headerCell('Player', 2)}
         {headerCell('Paid', 0.7, 'center')}
         {headerCell('Status', 1.2)}
-        {lastResultWeek && headerCell('Result', 1.2, 'center')}
+        {resultsAreCurrent && headerCell('Result', 1.2, 'center')}
         {currentWeek && headerCell('Pick', 1.3, 'right')}
       </div>
 
@@ -110,7 +112,7 @@ export function StandingsTable({ members, allPicks, currentWeek }: Props) {
               <span style={{ width: '9px', height: '9px', borderRadius: '50%', background: 'var(--field-green)', flexShrink: 0 }} />
               <span className="f-oswald" style={{ fontWeight: 700, fontSize: '11px', letterSpacing: '1px', textTransform: 'uppercase', color: 'var(--field-green)' }}>Alive</span>
             </span>
-            {lastResultWeek && (
+            {resultsAreCurrent && (
               <span className="f-oswald" style={{ flex: 1.2, textAlign: 'center', fontWeight: 700, fontSize: '11px', letterSpacing: '0.5px', textTransform: 'uppercase', color: badge.color }}>
                 {badge.label}
               </span>
@@ -157,7 +159,7 @@ export function StandingsTable({ members, allPicks, currentWeek }: Props) {
               Out{m.eliminatedWeek != null ? ` · W${m.eliminatedWeek}` : ''}
             </span>
           </span>
-          {lastResultWeek && (
+          {resultsAreCurrent && (
             <span className="f-mono" style={{ flex: 1.2, textAlign: 'center', fontSize: '13px', color: '#bcae8f' }}>—</span>
           )}
           {currentWeek && (

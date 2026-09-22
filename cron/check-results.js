@@ -301,8 +301,8 @@ async function processResults(finalGames) {
 
         if (eliminated) {
           await client.query(
-            `UPDATE league_members SET is_alive = false WHERE id = $1`,
-            [pick.league_member_id]
+            `UPDATE league_members SET is_alive = false, eliminated_week = $2 WHERE id = $1`,
+            [pick.league_member_id, week]
           );
         }
       }
