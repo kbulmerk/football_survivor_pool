@@ -38,6 +38,10 @@ if (!DATABASE_URL) {
 }
 
 const ESPN_SCOREBOARD_URL = 'https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard';
+// site.api.espn.com is occasionally hit with a transient Akamai block; this
+// undocumented sibling host serves the same scoreboard data and has stayed
+// reachable when the primary host hasn't.
+const ESPN_SCOREBOARD_FALLBACK_URL = 'https://site.web.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard';
 
 const rawArgs = process.argv.slice(2);
 let slate = null;
@@ -90,7 +94,20 @@ async function main(attempt = 1) {
   console.log(`Running on ${new Date().toISOString()}` + (TEST_PHONE ? ` (TEST MODE: ${TEST_PHONE})` : '') + (DATE_OVERRIDE ? ` (DATE OVERRIDE: ${DATE_OVERRIDE})` : ''));
   console.log(`--- Checking "${slate}" slate (attempt ${attempt}/${MAX_ATTEMPTS}) ---`);
 
-  const games = await fetchSlateGames(slate);
+  let games;
+  try {
+    games = await fetchSlateGames(slate);
+  } catch (err) {
+    console.error(`Failed to fetch ESPN data (both hosts): ${err.message}`);
+    if (attempt < MAX_ATTEMPTS) {
+      console.log(`Retrying in 15 min (attempt ${attempt + 1}/${MAX_ATTEMPTS}).`);
+      setTimeout(() => main(attempt + 1), RETRY_DELAY_MS);
+      return;
+    }
+    console.error(`Giving up after ${MAX_ATTEMPTS} attempts — this "${slate}" slate was not processed.`);
+    process.exitCode = 1;
+    return;
+  }
 
   if (games.length === 0) {
     console.log('No games found for this slate — nothing to do.');
@@ -121,10 +138,37 @@ async function main(attempt = 1) {
 // ─── ESPN FETCH + SLATE MATCHING ───────────────────────────────────────────
 
 function fetchSlateGames(slateName) {
-  const url = DATE_OVERRIDE
-    ? `${ESPN_SCOREBOARD_URL}?dates=${DATE_OVERRIDE}`
-    : ESPN_SCOREBOARD_URL;
+  const query = DATE_OVERRIDE ? `?dates=${DATE_OVERRIDE}` : '';
+  return fetchScoreboard(`${ESPN_SCOREBOARD_URL}${query}`)
+    .catch((err) => {
+      console.warn(`Primary ESPN host failed (${err.message}) — retrying against site.web.api.espn.com`);
+      return fetchScoreboard(`${ESPN_SCOREBOARD_FALLBACK_URL}${query}`);
+    })
+    .then((json) => {
+      const window = SLATE_WINDOWS[slateName];
+      return (json.events || [])
+        .map(event => {
+          const kickoff = new Date(event.date);
+          const et = toETParts(kickoff);
+          const competition = event.competitions[0];
+          const status = competition.status.type;
+          const [teamA, teamB] = competition.competitors;
+          return {
+            id: event.id,
+            etDay: et.day,
+            etHour: et.hour,
+            isFinal: status.completed === true,
+            teamA: teamA.team.displayName,
+            teamAWinner: teamA.winner === true,
+            teamB: teamB.team.displayName,
+            teamBWinner: teamB.winner === true,
+          };
+        })
+        .filter(g => g.etDay === window.day && g.etHour >= window.hourMin && g.etHour < window.hourMax);
+    });
+}
 
+function fetchScoreboard(url) {
   const options = {
     headers: {
       'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
@@ -147,28 +191,7 @@ function fetchSlateGames(slateName) {
           return;
         }
         try {
-          const json = JSON.parse(data);
-          const window = SLATE_WINDOWS[slateName];
-          const games = (json.events || [])
-            .map(event => {
-              const kickoff = new Date(event.date);
-              const et = toETParts(kickoff);
-              const competition = event.competitions[0];
-              const status = competition.status.type;
-              const [teamA, teamB] = competition.competitors;
-              return {
-                id: event.id,
-                etDay: et.day,
-                etHour: et.hour,
-                isFinal: status.completed === true,
-                teamA: teamA.team.displayName,
-                teamAWinner: teamA.winner === true,
-                teamB: teamB.team.displayName,
-                teamBWinner: teamB.winner === true,
-              };
-            })
-            .filter(g => g.etDay === window.day && g.etHour >= window.hourMin && g.etHour < window.hourMax);
-          resolve(games);
+          resolve(JSON.parse(data));
         } catch (err) {
           reject(new Error(`Failed to parse ESPN response as JSON. First 200 chars: ${data.slice(0, 200)}`));
         }

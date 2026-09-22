@@ -32,6 +32,10 @@ if (!DATABASE_URL) {
 }
 
 const ESPN_SCOREBOARD_URL = 'https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard';
+// site.api.espn.com is occasionally hit with a transient Akamai block; this
+// undocumented sibling host serves the same scoreboard data and has stayed
+// reachable when the primary host hasn't.
+const ESPN_SCOREBOARD_FALLBACK_URL = 'https://site.web.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard';
 const SEASON_TYPE_REGULAR = 2;
 
 // ─── MAIN ───────────────────────────────────────────────────────────────────
@@ -153,8 +157,14 @@ async function processLeague(client, league) {
 
 // Schedule only (kickoff times) — no scores/winners, that's check-results.js's job.
 function fetchESPNGames(week, season, seasonType = SEASON_TYPE_REGULAR) {
-  const url = `${ESPN_SCOREBOARD_URL}?seasontype=${seasonType}&week=${week}&dates=${season}`;
+  const query = `?seasontype=${seasonType}&week=${week}&dates=${season}`;
+  return fetchESPNUrl(`${ESPN_SCOREBOARD_URL}${query}`).catch((err) => {
+    console.warn(`[tuesday-open] Primary ESPN host failed (${err.message}) — retrying against site.web.api.espn.com`);
+    return fetchESPNUrl(`${ESPN_SCOREBOARD_FALLBACK_URL}${query}`);
+  });
+}
 
+function fetchESPNUrl(url) {
   const options = {
     headers: {
       'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',

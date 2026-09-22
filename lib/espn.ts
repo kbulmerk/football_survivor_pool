@@ -1,5 +1,10 @@
 const ESPN_SCOREBOARD_URL =
   'https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard';
+// site.api.espn.com is occasionally hit with a transient Akamai block; this
+// undocumented sibling host serves the same scoreboard data and has stayed
+// reachable when the primary host hasn't.
+const ESPN_SCOREBOARD_FALLBACK_URL =
+  'https://site.web.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard';
 
 export interface ESPNGame {
   id: string;
@@ -53,8 +58,13 @@ export async function fetchESPNGames(
   season: number,
   seasonType: number = SEASON_TYPE_REGULAR
 ): Promise<ESPNGame[]> {
-  const url = `${ESPN_SCOREBOARD_URL}?seasontype=${seasonType}&week=${week}&dates=${season}`;
-  const res = await fetch(url);
+  const query = `?seasontype=${seasonType}&week=${week}&dates=${season}`;
+  let res = await fetch(`${ESPN_SCOREBOARD_URL}${query}`);
+
+  if (!res.ok) {
+    console.warn(`ESPN API ${res.status} from site.api.espn.com — retrying against site.web.api.espn.com`);
+    res = await fetch(`${ESPN_SCOREBOARD_FALLBACK_URL}${query}`);
+  }
 
   if (!res.ok) {
     console.error(`ESPN API ${res.status} for week=${week} season=${season} seasontype=${seasonType}`);
