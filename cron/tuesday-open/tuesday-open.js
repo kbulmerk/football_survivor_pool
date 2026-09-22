@@ -101,33 +101,40 @@ async function processLeague(client, league) {
   }
 
   if (nextConfig) {
-    console.log(`[tuesday-open] League "${league.name}" — refreshing schedule for Week ${nextConfig.week}`);
-    const espnGames = await fetchESPNGames(nextConfig.week, league.season);
+    // The schedule was already seeded at league creation — this refresh just
+    // syncs kickoff times from ESPN, so a fetch failure (ESPN downtime, a
+    // transient block, etc.) shouldn't stop the week from opening.
+    try {
+      console.log(`[tuesday-open] League "${league.name}" — refreshing schedule for Week ${nextConfig.week}`);
+      const espnGames = await fetchESPNGames(nextConfig.week, league.season);
 
-    let refreshed = 0;
-    for (const espn of espnGames) {
-      const existingResult = await client.query(
-        `SELECT id FROM games
-         WHERE league_id = $1 AND week = $2 AND home_team = $3 AND away_team = $4`,
-        [league.id, nextConfig.week, espn.homeTeam, espn.awayTeam]
-      );
-
-      if (existingResult.rows[0]) {
-        await client.query(`UPDATE games SET start_time = $1 WHERE id = $2`, [
-          espn.startTime,
-          existingResult.rows[0].id,
-        ]);
-      } else {
-        // Fallback: game wasn't seeded at league creation — insert it now
-        await client.query(
-          `INSERT INTO games (league_id, week, home_team, away_team, start_time)
-           VALUES ($1, $2, $3, $4, $5)`,
-          [league.id, nextConfig.week, espn.homeTeam, espn.awayTeam, espn.startTime]
+      let refreshed = 0;
+      for (const espn of espnGames) {
+        const existingResult = await client.query(
+          `SELECT id FROM games
+           WHERE league_id = $1 AND week = $2 AND home_team = $3 AND away_team = $4`,
+          [league.id, nextConfig.week, espn.homeTeam, espn.awayTeam]
         );
+
+        if (existingResult.rows[0]) {
+          await client.query(`UPDATE games SET start_time = $1 WHERE id = $2`, [
+            espn.startTime,
+            existingResult.rows[0].id,
+          ]);
+        } else {
+          // Fallback: game wasn't seeded at league creation — insert it now
+          await client.query(
+            `INSERT INTO games (league_id, week, home_team, away_team, start_time)
+             VALUES ($1, $2, $3, $4, $5)`,
+            [league.id, nextConfig.week, espn.homeTeam, espn.awayTeam, espn.startTime]
+          );
+        }
+        refreshed++;
       }
-      refreshed++;
+      console.log(`[tuesday-open] League "${league.name}" Week ${nextConfig.week} — refreshed ${refreshed} game(s)`);
+    } catch (err) {
+      console.error(`[tuesday-open] League "${league.name}" — ESPN schedule refresh failed, opening Week ${nextConfig.week} with the existing seeded schedule: ${err.message}`);
     }
-    console.log(`[tuesday-open] League "${league.name}" Week ${nextConfig.week} — refreshed ${refreshed} game(s)`);
 
     // Close any other open weeks so only one is active at a time (mirrors openWeek in app/actions/admin.ts)
     await client.query(
