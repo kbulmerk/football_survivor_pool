@@ -68,6 +68,44 @@ export async function overrideElimination(leagueId: string, userId: string, isAl
   revalidatePath('/league');
 }
 
+export async function setPickResult(
+  leagueId: string,
+  userId: string,
+  week: number,
+  result: 'pending' | 'correct' | 'eliminated'
+) {
+  await requireAdmin();
+
+  await db
+    .update(picks)
+    .set({ result })
+    .where(and(eq(picks.leagueId, leagueId), eq(picks.userId, userId), eq(picks.week, week)));
+
+  // Keep membership in sync: eliminated knocks the member out; anything else
+  // reinstates them only if this week was the one that eliminated them.
+  if (result === 'eliminated') {
+    await db
+      .update(leagueMembers)
+      .set({ isAlive: false, eliminatedWeek: week })
+      .where(and(eq(leagueMembers.leagueId, leagueId), eq(leagueMembers.userId, userId)));
+  } else {
+    await db
+      .update(leagueMembers)
+      .set({ isAlive: true, eliminatedWeek: null })
+      .where(
+        and(
+          eq(leagueMembers.leagueId, leagueId),
+          eq(leagueMembers.userId, userId),
+          eq(leagueMembers.eliminatedWeek, week)
+        )
+      );
+  }
+
+  revalidatePath('/admin');
+  revalidatePath('/league');
+  revalidatePath('/dashboard');
+}
+
 export async function openWeek(leagueId: string, week: number) {
   await requireAdmin();
 

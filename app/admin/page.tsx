@@ -5,7 +5,7 @@ import { db } from '@/lib/db';
 import { requireAdmin } from '@/lib/auth';
 import { getAllLeagues } from '@/app/actions/league';
 import { getCompletedLeagues } from '@/app/actions/admin';
-import { games, leagueMembers, quarterResults, squareAssignments, squaresConfig, users, weekConfig } from '@/lib/schema';
+import { games, leagueMembers, picks, quarterResults, squareAssignments, squaresConfig, users, weekConfig } from '@/lib/schema';
 import { AdminUserRow } from '@/components/AdminUserRow';
 import { AdminGameRow } from '@/components/AdminGameRow';
 import { AdminWeekControls } from '@/components/AdminWeekControls';
@@ -144,6 +144,12 @@ export default async function AdminPage({
   const selectedWeek = weekParam ? Number(weekParam) : defaultWeek;
   const currentConfig = allConfigs.find((c) => c.week === selectedWeek) ?? null;
 
+  const weekPicks = await db
+    .select({ userId: picks.userId, team: picks.teamPicked, result: picks.result })
+    .from(picks)
+    .where(and(eq(picks.leagueId, league.id), eq(picks.week, selectedWeek)));
+  const pickByUser = new Map(weekPicks.map((p) => [p.userId, p]));
+
   const weekGames = await db
     .select()
     .from(games)
@@ -255,7 +261,7 @@ export default async function AdminPage({
         <div style={{ border: '1.5px solid var(--ink)', borderRadius: '7px', overflow: 'hidden', boxShadow: '6px 6px 0 rgba(34,26,16,0.13)', background: 'var(--paper-card)' }}>
           {members.map((member, i) => (
             <div key={member.userId} style={{ borderBottom: i < members.length - 1 ? '1px solid var(--hairline)' : undefined }}>
-              <AdminUserRow member={member} leagueId={league.id} currentWeek={selectedWeek} gameType={league.gameType} />
+              <AdminUserRow member={member} leagueId={league.id} currentWeek={selectedWeek} gameType={league.gameType} pick={pickByUser.get(member.userId) ?? null} />
             </div>
           ))}
         </div>

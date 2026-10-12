@@ -12,6 +12,7 @@
  *
  * Schedule with cron (ET times, no Thursday games):
  *   crontab -e
+ *   0 13 * * 0    node /path/to/check-results.js intl    # ~1:00pm Sun (9:30am ET international game)
  *   30 16 * * 0   node /path/to/check-results.js early   # ~4:30pm Sun
  *   45 19 * * 0   node /path/to/check-results.js late    # ~7:45pm Sun
  *   45 23 * * 0   node /path/to/check-results.js snf     # ~11:45pm Sun
@@ -66,7 +67,7 @@ for (const arg of rawArgs) {
   }
 }
 
-const VALID_SLATES = ['early', 'late', 'snf', 'mnf'];
+const VALID_SLATES = ['intl', 'early', 'late', 'snf', 'mnf'];
 
 const TOTAL_WEEKS = 18;
 
@@ -76,6 +77,7 @@ const RETRY_DELAY_MS = 15 * 60 * 1000; // 15 minutes
 // ET day/hour windows used to match ESPN games to a slate.
 // day: 0=Sun, 1=Mon. Adjust hourMin/hourMax if a slate's kickoff shifts.
 const SLATE_WINDOWS = {
+  intl:  { day: 0, hourMin: 6,  hourMax: 12 }, // ~9:30am ET Sunday international games (London/Germany/etc.)
   early: { day: 0, hourMin: 12, hourMax: 14 }, // ~1:00pm ET Sunday games
   late:  { day: 0, hourMin: 15, hourMax: 17 }, // ~4:05/4:25pm ET Sunday games
   snf:   { day: 0, hourMin: 19, hourMax: 21 }, // Sunday Night Football

@@ -1,7 +1,7 @@
 'use client';
 
 import { useTransition } from 'react';
-import { markPaid, overrideElimination, removeMember } from '@/app/actions/admin';
+import { markPaid, overrideElimination, removeMember, setPickResult } from '@/app/actions/admin';
 
 interface Member {
   userId: string;
@@ -12,7 +12,12 @@ interface Member {
   eliminatedWeek: number | null;
 }
 
-export function AdminUserRow({ member, leagueId, currentWeek, gameType = 'survivor' }: { member: Member; leagueId: string; currentWeek: number; gameType?: string }) {
+interface WeekPick {
+  team: string;
+  result: 'pending' | 'correct' | 'eliminated' | null;
+}
+
+export function AdminUserRow({ member, leagueId, currentWeek, gameType = 'survivor', pick = null }: { member: Member; leagueId: string; currentWeek: number; gameType?: string; pick?: WeekPick | null }) {
   const [isPending, startTransition] = useTransition();
 
   function handleMarkPaid() {
@@ -23,6 +28,10 @@ export function AdminUserRow({ member, leagueId, currentWeek, gameType = 'surviv
     startTransition(async () => { await overrideElimination(leagueId, member.userId, !member.isAlive, currentWeek); });
   }
 
+  function handleSetResult(result: 'pending' | 'correct' | 'eliminated') {
+    startTransition(async () => { await setPickResult(leagueId, member.userId, currentWeek, result); });
+  }
+
   function handleRemove() {
     if (!confirm(`Remove ${member.name ?? 'this member'} from the pool?`)) return;
     startTransition(async () => { await removeMember(leagueId, member.userId); });
@@ -31,7 +40,8 @@ export function AdminUserRow({ member, leagueId, currentWeek, gameType = 'surviv
   const isSquares = gameType === 'squares';
 
   return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 14px' }}>
+    <div style={{ padding: '14px 14px' }}>
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
       <div>
         <p className="f-spectral" style={{ fontWeight: 600, fontSize: '15px', color: 'var(--ink)', margin: 0 }}>
           {member.name ?? 'Unknown'}
@@ -135,6 +145,39 @@ export function AdminUserRow({ member, leagueId, currentWeek, gameType = 'surviv
           </>
         )}
       </div>
+    </div>
+    {!isSquares && pick && (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', marginTop: '10px', paddingTop: '10px', borderTop: '1px dashed var(--hairline)' }}>
+        <span className="f-mono" style={{ fontSize: '11px', color: 'var(--mono-muted)' }}>
+          W{currentWeek} PICK: {pick.team} · {(pick.result ?? 'pending').toUpperCase()}
+        </span>
+        <div style={{ display: 'flex', gap: '6px' }}>
+          {([['correct', 'Safe', 'var(--field-green)', '#a9bb9f'], ['eliminated', 'Out', 'var(--varsity-red)', '#d99b96'], ['pending', 'Reset', 'var(--amber-text)', '#d8b873']] as const).map(([value, label, color, border]) => (
+            <button
+              key={value}
+              onClick={() => handleSetResult(value)}
+              disabled={isPending || (pick.result ?? 'pending') === value}
+              className="f-oswald"
+              style={{
+                fontWeight: 600,
+                fontSize: '10px',
+                letterSpacing: '0.5px',
+                textTransform: 'uppercase',
+                color,
+                border: `1.5px solid ${border}`,
+                borderRadius: '4px',
+                padding: '4px 8px',
+                background: 'transparent',
+                cursor: isPending ? 'not-allowed' : 'pointer',
+                opacity: isPending || (pick.result ?? 'pending') === value ? 0.4 : 1,
+              }}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+    )}
     </div>
   );
 }
