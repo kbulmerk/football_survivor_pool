@@ -103,7 +103,7 @@ async function main(attempt = 1) {
     console.error(`Failed to fetch ESPN data (both hosts): ${err.message}`);
     if (attempt < MAX_ATTEMPTS) {
       console.log(`Retrying in 15 min (attempt ${attempt + 1}/${MAX_ATTEMPTS}).`);
-      setTimeout(() => main(attempt + 1), RETRY_DELAY_MS);
+      scheduleRetry(attempt + 1);
       return;
     }
     console.error(`Giving up after ${MAX_ATTEMPTS} attempts — this "${slate}" slate was not processed.`);
@@ -120,7 +120,7 @@ async function main(attempt = 1) {
 
   if (stillLive.length > 0 && attempt < MAX_ATTEMPTS) {
     console.log(`${stillLive.length} game(s) still in progress (likely overtime). Rechecking in 15 min.`);
-    setTimeout(() => main(attempt + 1), RETRY_DELAY_MS);
+    scheduleRetry(attempt + 1);
     return;
   }
 
@@ -134,7 +134,29 @@ async function main(attempt = 1) {
     return;
   }
 
-  await processResults(finalGames);
+  try {
+    await processResults(finalGames);
+  } catch (err) {
+    // Usually the SSH tunnel to the Pi — nothing was written or texted yet.
+    console.error(`Failed to process results: ${err.message}`);
+    if (attempt < MAX_ATTEMPTS) {
+      console.log(`Retrying in 15 min (attempt ${attempt + 1}/${MAX_ATTEMPTS}).`);
+      scheduleRetry(attempt + 1);
+      return;
+    }
+    console.error(`Giving up after ${MAX_ATTEMPTS} attempts — this "${slate}" slate was not processed.`);
+    process.exitCode = 1;
+  }
+}
+
+// main() rejections inside a timer would otherwise crash the process
+function scheduleRetry(nextAttempt) {
+  setTimeout(() => {
+    main(nextAttempt).catch(err => {
+      console.error('Fatal error:', err.message);
+      process.exit(1);
+    });
+  }, RETRY_DELAY_MS);
 }
 
 // ─── ESPN FETCH + SLATE MATCHING ───────────────────────────────────────────
@@ -219,7 +241,7 @@ function toETParts(date) {
 // ─── DB UPDATE + TEXTING ───────────────────────────────────────────────────
 
 async function processResults(finalGames) {
-  console.log('Opening SSH tunnel to raspberrypi.local...');
+  console.log('Opening SSH tunnel to the Pi...');
   const tunnel = await startTunnel(DB_LOCAL_PORT);
   console.log('Tunnel established.');
 

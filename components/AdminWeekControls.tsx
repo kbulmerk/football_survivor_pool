@@ -3,7 +3,7 @@
 import { useTransition, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { WeekConfig } from '@/lib/schema';
-import { setDeadline, openWeek, lockWeek, seedTestGames, backfillMissingPicks, clearPicksForWeek, completeLeague } from '@/app/actions/admin';
+import { setDeadline, openWeek, lockWeek, clearPicksForWeek, completeLeague } from '@/app/actions/admin';
 
 interface Props {
   leagueId: string;
@@ -58,14 +58,6 @@ export function AdminWeekControls({ leagueId, currentConfig, allConfigs, selecte
 
   function handleLockWeek() {
     startTransition(async () => { await lockWeek(leagueId, week); });
-  }
-
-  function handleSeedTestGames() {
-    startTransition(async () => { await seedTestGames(leagueId, week); });
-  }
-
-  function handleBackfill() {
-    startTransition(async () => { await backfillMissingPicks(leagueId); });
   }
 
   function handleClearPicks() {
@@ -167,35 +159,6 @@ export function AdminWeekControls({ leagueId, currentConfig, allConfigs, selecte
       >
         Set Deadline
       </button>
-
-      {/* Divider */}
-      <div style={{ height: '1.5px', background: 'var(--hairline)', margin: '14px 0' }} />
-
-      {/* Utility buttons */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '9px' }}>
-          <button
-            onClick={handleSeedTestGames}
-            disabled={isPending}
-            className="f-oswald"
-            style={{ fontWeight: 600, fontSize: '12px', letterSpacing: '0.5px', textTransform: 'uppercase', color: '#6b4a8a', border: '1.5px solid #b79ed1', borderRadius: '4px', padding: '7px 11px', background: 'transparent', cursor: 'pointer' }}
-          >
-            Load Test Games
-          </button>
-          <span className="f-spectral" style={{ fontStyle: 'italic', fontSize: '11px', color: 'var(--mono-muted)' }}>seeds 4 fake matchups</span>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '9px' }}>
-          <button
-            onClick={handleBackfill}
-            disabled={isPending}
-            className="f-oswald"
-            style={{ fontWeight: 600, fontSize: '12px', letterSpacing: '0.5px', textTransform: 'uppercase', color: '#9a6a1d', border: '1.5px solid #d8b873', borderRadius: '4px', padding: '7px 11px', background: 'transparent', cursor: 'pointer' }}
-          >
-            Backfill Picks
-          </button>
-          <span className="f-spectral" style={{ fontStyle: 'italic', fontSize: '11px', color: 'var(--mono-muted)' }}>auto-assigns locked weeks</span>
-        </div>
-      </div>
 
       {/* Divider */}
       {currentConfig && (

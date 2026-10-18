@@ -73,28 +73,20 @@ npm run db:migrate    # apply to database
 
 ## Cron jobs
 
-Configured as Dockerized cron jobs (see `cron/saturday-lock` and `cron/tuesday-open`) that hit protected API routes:
+Scripts in `cron/` talk directly to Postgres (no API routes).
 
-| Schedule | Route | Action |
+| Schedule (ET) | Script | Action |
 |---|---|---|
-| Tue 9am | `/api/cron/tuesday-open` | Open picks, SMS all alive members |
-| Sat 9am | `/api/cron/saturday-remind` | Remind unpicked members |
-| Sun 12am | `/api/cron/saturday-lock` | Lock all picks |
-| Mon 1am | `/api/cron/monday-results` | Evaluate results, update standings |
+| Tue 9am | `cron/tuesday-open` | Open the next week and refresh its schedule from ESPN |
+| Tue & Sat 9am | `cron/remind.js` | Text members who haven't picked |
+| Sun 12am | `cron/saturday-lock` | Auto-pick for anyone without a pick (unused, Sun/Mon, not favored), then lock the week |
+| After each slate | `cron/check-results.js` | Evaluate results, update standings |
 
-Each route requires `Authorization: Bearer $CRON_SECRET` header.
+`saturday-lock` and `tuesday-open` run as Docker Compose services from the Pi's host crontab, e.g.:
 
-### Testing cron jobs locally
+```bash
+0 0 * * 0  cd ~/Documents/football-pool && docker compose run --rm saturday-lock
+```
 
-1. Start the dev server:
-   ```bash
-   npm run dev
-   ```
-
-2. Run a script with your env vars inline:
-   ```bash
-   APP_URL=http://localhost:3000 CRON_SECRET=<your-cron-secret> sh scripts/cron/saturday-lock.sh
-   ```
-
-   Replace `saturday-lock.sh` with whichever script you want to test.
+After editing either one, rebuild its image: `docker compose build saturday-lock`.
 

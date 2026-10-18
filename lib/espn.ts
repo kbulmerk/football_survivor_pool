@@ -22,6 +22,8 @@ export interface ESPNGame {
   // Current period number per ESPN (1-4, 5+ for OT) and completion flag.
   period: number;
   completed: boolean;
+  // Team ESPN's line lists as favored, or null (no odds posted, or a pick'em).
+  favorite: string | null;
 }
 
 // ESPN season types. 2 = regular season, 3 = postseason (playoffs + Super Bowl).
@@ -106,6 +108,13 @@ export async function fetchESPNGames(
       winner = homeScore > awayScore ? homeTeam : awayScore > homeScore ? awayTeam : null;
     }
 
+    const odds = (competition?.odds as Array<Record<string, { favorite?: boolean } | undefined>> | undefined)?.[0];
+    const favorite = odds?.homeTeamOdds?.favorite
+      ? homeTeam
+      : odds?.awayTeamOdds?.favorite
+        ? awayTeam
+        : null;
+
     const toLinescores = (c: Record<string, unknown> | undefined): number[] =>
       ((c?.linescores as Array<{ value?: number }> | undefined) ?? []).map((l) =>
         Number(l?.value ?? 0)
@@ -125,6 +134,7 @@ export async function fetchESPNGames(
       awayLinescores: toLinescores(away),
       period,
       completed,
+      favorite,
     }];
   });
 }

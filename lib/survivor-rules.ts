@@ -1,13 +1,24 @@
 import { and, eq, ne } from 'drizzle-orm';
 import { db } from './db';
 import { games, leagues, leagueMembers, messages, picks, weekConfig } from './schema';
+import { fetchESPNGames } from './espn';
 
 const TOTAL_WEEKS = 18;
 
+/**
+ * Gives every paid, alive member without a pick for `week` a random team that
+ * they haven't used, whose game is on Sunday or Monday (ET) and hasn't kicked
+ * off, and that isn't favored per ESPN's line. Mirrors autoAssignMissingPicks
+ * in cron/saturday-lock — keep the two in sync. If ESPN's odds can't be
+ * fetched, falls back to any eligible Sunday/Monday team.
+ */
 export async function autoAssignMissingPicksForWeek(
   leagueId: string,
   week: number
 ): Promise<void> {
+  const [league] = await db.select({ season: leagues.season }).from(leagues).where(eq(leagues.id, leagueId));
+  if (!league) return;
+
   const members = await db
     .select({ userId: leagueMembers.userId })
     .from(leagueMembers)
@@ -26,8 +37,22 @@ export async function autoAssignMissingPicksForWeek(
       and(eq(games.leagueId, leagueId), eq(games.week, week), eq(games.isExcluded, false))
     );
 
-  const allTeams = weekGames.flatMap((g) => [g.homeTeam, g.awayTeam]);
+  const now = new Date();
+  const sundayMondayGames = weekGames.filter((g) => {
+    const day = g.startTime.toLocaleString('en-US', { timeZone: 'America/New_York', weekday: 'short' });
+    return (day === 'Sun' || day === 'Mon') && g.startTime > now;
+  });
+  let allTeams = sundayMondayGames.flatMap((g) => [g.homeTeam, g.awayTeam]);
   if (allTeams.length === 0) return;
+
+  // fetchESPNGames returns [] on failure, which leaves the underdog filter off
+  const espnGames = await fetchESPNGames(week, league.season);
+  if (espnGames.length > 0) {
+    const favorites = new Set(espnGames.map((g) => g.favorite).filter((t) => t !== null));
+    allTeams = allTeams.filter((t) => !favorites.has(t));
+  } else {
+    console.warn(`[auto-pick] ESPN odds unavailable for week ${week}, auto-picking without the underdog filter`);
+  }
 
   for (const { userId } of members) {
     const [existing] = await db
@@ -55,17 +80,6 @@ export async function autoAssignMissingPicksForWeek(
       .values({ leagueId, userId, week, teamPicked: randomTeam })
       .onConflictDoNothing();
   }
-}
-
-export async function autoAssignOnDeadlinePass(
-  leagueId: string,
-  week: number
-): Promise<void> {
-  await autoAssignMissingPicksForWeek(leagueId, week);
-  await db
-    .update(weekConfig)
-    .set({ isLocked: true })
-    .where(and(eq(weekConfig.leagueId, leagueId), eq(weekConfig.week, week)));
 }
 
 /**

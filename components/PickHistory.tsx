@@ -17,6 +17,12 @@ export function PickHistory({ picks, members }: PickHistoryProps) {
   const nameMap = Object.fromEntries(members.map((m) => [m.userId, m.name ?? 'Unknown']));
   const weeks = [...new Set(picks.map((p) => p.week))].sort((a, b) => a - b);
 
+  // Alive first, then most recently eliminated, then alphabetical within each group
+  const elimRank = (m: Member) => (m.isAlive ? Infinity : m.eliminatedWeek ?? -Infinity);
+  const sortedMembers = [...members].sort(
+    (a, b) => elimRank(b) - elimRank(a) || (a.name ?? '').localeCompare(b.name ?? '')
+  );
+
   if (picks.length === 0) {
     return (
       <p className="f-spectral" style={{ color: 'var(--text-muted)', fontSize: '13.5px' }}>
@@ -50,10 +56,10 @@ export function PickHistory({ picks, members }: PickHistoryProps) {
             </div>
 
             {/* Member rows */}
-            {members.map((member, rowIdx) => {
+            {sortedMembers.map((member, rowIdx) => {
               const isEliminated = !member.isAlive;
               const rowBg = isEliminated ? 'var(--paper-row-dead)' : 'var(--paper-card)';
-              const isLast = rowIdx === members.length - 1;
+              const isLast = rowIdx === sortedMembers.length - 1;
 
               return (
                 <div

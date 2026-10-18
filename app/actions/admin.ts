@@ -146,26 +146,6 @@ export async function lockWeek(leagueId: string, week: number) {
   revalidatePath('/league');
 }
 
-export async function backfillMissingPicks(leagueId: string) {
-  await requireAdmin();
-
-  const now = new Date();
-  const configs = await db
-    .select()
-    .from(weekConfig)
-    .where(eq(weekConfig.leagueId, leagueId));
-
-  const pastWeeks = configs.filter((c) => c.isLocked || new Date(c.deadline) < now);
-
-  for (const config of pastWeeks) {
-    await autoAssignMissingPicksForWeek(leagueId, config.week);
-  }
-
-  revalidatePath('/admin');
-  revalidatePath('/dashboard');
-  revalidatePath('/league');
-}
-
 export async function upsertGame(
   leagueId: string,
   week: number,
@@ -184,35 +164,6 @@ export async function upsertGame(
     startTime,
     winner: winner ?? null,
   });
-
-  revalidatePath('/admin');
-  revalidatePath('/pick');
-}
-
-export async function seedTestGames(leagueId: string, week: number) {
-  await requireAdmin();
-
-  const testGames = [
-    { homeTeam: 'Kansas City Chiefs', awayTeam: 'Baltimore Ravens' },
-    { homeTeam: 'San Francisco 49ers', awayTeam: 'Dallas Cowboys' },
-    { homeTeam: 'Buffalo Bills', awayTeam: 'Miami Dolphins' },
-    { homeTeam: 'Philadelphia Eagles', awayTeam: 'New York Giants' },
-  ];
-
-  const sunday = new Date();
-  sunday.setDate(sunday.getDate() + ((7 - sunday.getDay()) % 7 || 7));
-  sunday.setHours(13, 0, 0, 0);
-
-  for (const g of testGames) {
-    await db.insert(games).values({
-      leagueId,
-      week,
-      homeTeam: g.homeTeam,
-      awayTeam: g.awayTeam,
-      startTime: new Date(sunday),
-    });
-    sunday.setHours(sunday.getHours() + 3);
-  }
 
   revalidatePath('/admin');
   revalidatePath('/pick');

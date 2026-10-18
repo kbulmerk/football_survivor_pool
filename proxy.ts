@@ -19,7 +19,7 @@ export default clerkMiddleware(async (auth, req) => {
   }
 });
 
-// api/health and api/cron are excluded here (not just from isPublicRoute)
+// api/health is excluded here (not just from isPublicRoute)
 // because clerkMiddleware resolves auth state for any matched request before
 // the callback runs, which triggers Clerk's dev-instance handshake redirect
 // for cookie-less requests with a browser-like Accept header — that loops
@@ -27,6 +27,6 @@ export default clerkMiddleware(async (auth, req) => {
 // the handshake hop.
 export const config = {
   matcher: [
-    '/((?!_next|api/health|api/cron|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)',
+    '/((?!_next|api/health|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)',
   ],
 };

@@ -8,8 +8,21 @@
 const { spawn } = require('child_process');
 const net = require('net');
 
-const SSH_HOST = 'kbulmer@raspberrypi.local';
+const SSH_USER = 'kbulmer';
+// Tried in order. The Mac's mDNS lookup of raspberrypi.local fails now and
+// then ("Could not resolve hostname"), so fall back to the Pi's LAN address
+// and then its Tailscale address (stable, and works away from home too).
+// Override with PI_SSH_HOSTS=host1,host2 in .env.local.
+const SSH_HOSTS = (process.env.PI_SSH_HOSTS || 'raspberrypi.local,192.168.1.195,100.109.98.112')
+  .split(',')
+  .map((h) => h.trim())
+  .filter(Boolean);
+// Verify every address against the host key already saved for
+// raspberrypi.local, so the IP fallbacks don't fail on an unknown-host prompt.
+const HOST_KEY_ALIAS = 'raspberrypi.local';
 const REMOTE_DB_PORT = 5432;
+const ROUNDS = 3;
+const ROUND_DELAY_MS = 30 * 1000;
 
 function waitForPort(port, timeoutMs) {
   const deadline = Date.now() + timeoutMs;
@@ -33,15 +46,37 @@ function waitForPort(port, timeoutMs) {
   });
 }
 
-function startTunnel(localPort) {
+// Tries each host in SSH_HOSTS, and if all fail, waits and tries the whole
+// list again, up to ROUNDS times.
+async function startTunnel(localPort) {
+  const errors = [];
+  for (let round = 1; round <= ROUNDS; round++) {
+    for (const host of SSH_HOSTS) {
+      try {
+        const proc = await startTunnelTo(host, localPort);
+        console.log(`SSH tunnel up via ${host}.`);
+        return proc;
+      } catch (err) {
+        console.warn(`SSH tunnel via ${host} failed (round ${round}/${ROUNDS}): ${err.message}`);
+        errors.push(`${host}: ${err.message}`);
+      }
+    }
+    if (round < ROUNDS) await new Promise((r) => setTimeout(r, ROUND_DELAY_MS));
+  }
+  throw new Error(`Could not open SSH tunnel to the Pi after ${ROUNDS} rounds:\n  ${errors.join('\n  ')}`);
+}
+
+function startTunnelTo(host, localPort) {
   return new Promise((resolve, reject) => {
     const proc = spawn('ssh', [
       '-N',
       '-L', `${localPort}:localhost:${REMOTE_DB_PORT}`,
       '-o', 'ExitOnForwardFailure=yes',
       '-o', 'ConnectTimeout=10',
+      '-o', 'BatchMode=yes', // never hang on a password/host-key prompt under cron
+      '-o', `HostKeyAlias=${HOST_KEY_ALIAS}`,
       '-o', 'AddressFamily=inet', // raspberrypi.local's IPv6 route is flaky/slow; force IPv4
-      SSH_HOST,
+      `${SSH_USER}@${host}`,
     ]);
 
     let settled = false;

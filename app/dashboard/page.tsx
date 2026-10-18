@@ -4,7 +4,6 @@ import { db } from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
 import { leagueMembers, picks, quarterResults, squareAssignments, squaresConfig, weekConfig } from '@/lib/schema';
 import { getAllLeagues } from '@/app/actions/league';
-import { autoAssignOnDeadlinePass } from '@/lib/survivor-rules';
 import { getTeamAbbr } from '@/lib/team-colors';
 import { formatRound } from '@/lib/espn';
 import { Countdown } from '@/components/Countdown';
@@ -57,10 +56,6 @@ export default async function DashboardPage({
         .where(and(eq(weekConfig.leagueId, league.id), eq(weekConfig.isOpen, true)))
         .orderBy(desc(weekConfig.week))
         .limit(1);
-
-      if (config && !config.isLocked && new Date() > config.deadline) {
-        await autoAssignOnDeadlinePass(league.id, config.week);
-      }
 
       const currentWeek = config?.week ?? null;
       const isLocked = config ? (config.isLocked || new Date() > config.deadline) : false;

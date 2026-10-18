@@ -4,7 +4,6 @@ import { db } from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
 import { games, leagueMembers, picks, weekConfig } from '@/lib/schema';
 import { getMyLeagues, getLeagueById } from '@/app/actions/league';
-import { autoAssignOnDeadlinePass } from '@/lib/survivor-rules';
 import { PickForm } from '@/components/PickForm';
 import { LeaguePicker } from '@/components/LeaguePicker';
 import { LeagueSwitcherBar } from '@/components/LeagueSwitcherBar';
@@ -58,10 +57,6 @@ export default async function PickPage({
     .where(and(eq(weekConfig.leagueId, league.id), eq(weekConfig.isOpen, true)))
     .orderBy(desc(weekConfig.week))
     .limit(1);
-
-  if (config && !config.isLocked && new Date() > config.deadline) {
-    await autoAssignOnDeadlinePass(league.id, config.week);
-  }
 
   const isLocked = config ? (config.isLocked || new Date() > config.deadline) : false;
 

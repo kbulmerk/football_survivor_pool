@@ -61,7 +61,7 @@ for (const arg of rawArgs) {
 async function main() {
   console.log(`Running on ${new Date().toISOString()}` + (DRY_RUN ? ' (DRY RUN)' : '') + (TEST_PHONE ? ` (TEST MODE: ${TEST_PHONE})` : ''));
 
-  console.log('Opening SSH tunnel to raspberrypi.local...');
+  console.log('Opening SSH tunnel to the Pi...');
   const tunnel = await startTunnel(DB_LOCAL_PORT);
   console.log('Tunnel established.');
 
