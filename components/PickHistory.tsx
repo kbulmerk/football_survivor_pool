@@ -17,8 +17,19 @@ export function PickHistory({ picks, members }: PickHistoryProps) {
   const nameMap = Object.fromEntries(members.map((m) => [m.userId, m.name ?? 'Unknown']));
   const weeks = [...new Set(picks.map((p) => p.week))].sort((a, b) => a - b);
 
+  // leagueMembers.eliminatedWeek isn't always stamped, so fall back to the week
+  // of the member's pick that was scored 'eliminated'.
+  const elimWeekByUser = new Map<string, number>();
+  for (const p of picks) {
+    if (p.result === 'eliminated') {
+      const prev = elimWeekByUser.get(p.userId);
+      if (prev === undefined || p.week < prev) elimWeekByUser.set(p.userId, p.week);
+    }
+  }
+  const elimWeek = (m: Member): number | null => m.eliminatedWeek ?? elimWeekByUser.get(m.userId) ?? null;
+
   // Alive first, then most recently eliminated, then alphabetical within each group
-  const elimRank = (m: Member) => (m.isAlive ? Infinity : m.eliminatedWeek ?? -Infinity);
+  const elimRank = (m: Member) => (m.isAlive ? Infinity : elimWeek(m) ?? -Infinity);
   const sortedMembers = [...members].sort(
     (a, b) => elimRank(b) - elimRank(a) || (a.name ?? '').localeCompare(b.name ?? '')
   );
@@ -92,8 +103,9 @@ export function PickHistory({ picks, members }: PickHistoryProps) {
                   {/* Week cells */}
                   {weeks.map((w) => {
                     const pick = picks.find((p) => p.userId === member.userId && p.week === w);
-                    const isEliminatingPick = !member.isAlive && member.eliminatedWeek === w;
-                    const isAfterElim = !member.isAlive && member.eliminatedWeek != null && w > member.eliminatedWeek;
+                    const memberElimWeek = elimWeek(member);
+                    const isEliminatingPick = !member.isAlive && memberElimWeek === w;
+                    const isAfterElim = !member.isAlive && memberElimWeek != null && w > memberElimWeek;
 
                     if (!pick || isAfterElim) {
                       return (
